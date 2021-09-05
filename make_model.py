@@ -11,12 +11,13 @@ import torch.optim as optimizers
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import copy
 
-filename = '/USDJPY_M1.csv'
+filename = './data/USDJPY_M1.csv'
 #MACDの値を返す関数を定義する。（引数はロウソク足の終値）
 def macd_data(data):
     #短期と長期の指数平滑移動平均、MACDのリスト、signalのリスト
     Lema, Sema, MACD, signal = [], [], [], []
     num = 0
+    num2 = 0
     d = []
     for m in data:
         d.append(m)
@@ -32,16 +33,21 @@ def macd_data(data):
             Sema.append(Sema[num-1]*(1-(2/13))+d[i-1]*2/13)
             MACD.append(Sema[num]-Lema[num])
             num+=1
-    num = 0
-    #print(len(MACD))
-    for i in range(len(MACD)-1):
-        signal.append(sum(MACD[:i])/(i+1))
-        
+    for i in range(9, len(MACD)):
+        if i == 9 and num2 == 0:
+            signal.append(mean(MACD[i-9:i]))
+            num2+=1
+        elif i != 9:
+            signal.append(signal[num2-1]*(1-(2/10))+MACD[i-1]*2/10)
+            num2+=1
     #MACDとsignalの値を返す
     return MACD, signal
 #MACDのシグナルを計算
 def macd_signal(MACD, signal):
-    MACD_signal = (MACD - signal)
+    MACD_signal = []
+    MACD = MACD[9:]
+    for i in range(len(MACD)):
+        MACD_signal.append(MACD[i] - signal[i])
     return MACD_signal
 def make_df(df, df_rev):  
     df_rev = df_rev.drop('date', axis=1)
@@ -87,7 +93,6 @@ def make_df(df, df_rev):
     df_19 = df_19.reset_index(drop=True)
     df_20 = df_20.reset_index(drop=True)
 
-    #print(df_1, df_2, df_3, df_4, df_5, df_6, df_7, df_8, df_9, df_10)
     df_al = pd.concat([df_1, df_2, df_3, df_4, df_5, df_6, df_7, df_8, df_9, df_10, df_11, df_12, df_13, df_14, df_15, df_16, df_17, df_18, df_19, df_20], axis='columns')
     df_al.insert(0, 'label', 0)
     #print(df_al)
@@ -104,7 +109,6 @@ def make_df(df, df_rev):
             df_al.iloc[i, 0] = 4
         elif df_al.iloc[i, 1] == df_al.iloc[i+1, 80]:
             df_al.iloc[i, 0] = 5
-    #df_al = df_al.drop(df_al.index[[0]])
     df_al = df_al.drop(df_al.index[[0]])
     df_al = df_al.drop(df_al.index[[0]])
     df_al = df_al.reset_index(drop=True)
@@ -159,19 +163,16 @@ def make_df(df, df_rev):
 #データの準備
 df_all = pd.read_csv(filename)
 df_clo = df_all['close']
-MACD, siganl = macd_data(df_clo)
+MACD, signal = macd_data(df_clo)
 #print(MACD, signal)
 MACD_signal = macd_signal(MACD, signal)
 df_mac = pd.Series(MACD_signal)
+df_mac = df_mac.iloc[5:]
 #print(df_mac)
 df = make_df(df_mac, df_all)
 sh = df.shape
 df.columns = range(sh[1])
-
-df = df.drop(len(df)-1)
-#df = df.drop(len(df)-1)
-
-print(df)
+#print(df)
 
 #ラベル別分類する．
 df_buy = df.loc[df.iloc[:, 0] == 1]
@@ -188,13 +189,13 @@ num_sell = df_sell.shape[0]     #データ数67079個
 num_sell2 = df_sell2.shape[0]   #データ数79757個
 num_no = df_no.shape[0]         #データ数4411個
 
-
+"""
 print(df_buy)
 print(df_buy2)
 print(df_sell)
 print(df_sell2)
 print(df_no)
-
+"""
 
 
 #データの分割
@@ -395,12 +396,12 @@ for epoch in range(epochs):
         # preserve the best parameters
         best_model_params = copy.deepcopy(model.state_dict())
         best_loss = vali_loss
-        torch.save(best_model_params.state_dict(), 'FXmodel.pth')
+        torch.save(best_model_params, 'FXmodel.pth')
     log['epoch'].append(epoch+1)
     log['train_loss'].append(train_loss)
     log['train_acc'].append(train_acc)
     log['vali_loss'].append(vali_loss)
     log['vali_acc'].append(vali_acc)
     #log['pre'].append(pre)
-    pd.DataFrame(log).to_csv('./create_lang/train_log.csv')
+    pd.DataFrame(log).to_csv('./data/train_log.csv')
 
