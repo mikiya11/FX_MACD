@@ -24,7 +24,7 @@ loa_path = 'FXmodel.pth'
 
 
 config = configparser.ConfigParser()
-config.read('./config/config_v1.txt') # ID、トークンパスの指定が必要
+config.read('./data/config_v1.txt') # ID、トークンパスの指定が必要
 account_id = config['oanda']['account_id']
 api_key = config['oanda']['api_key']
 
@@ -37,37 +37,70 @@ ex_pair = "USD_JPY" #対象通貨を指定
 
 asi = 'M1' #取得した時間足を指定
 def get_mdata(ex_pair, api, asi):
-    params1 = {"instruments": ex_pair}
-    psnow = pricing.PricingInfo(accountID=account_id, params=params1)
-    now = api.request(psnow) #現在の価格を取得
+    try:
+        params1 = {"instruments": ex_pair}
+        psnow = pricing.PricingInfo(accountID=account_id, params=params1)
+        now = api.request(psnow) #現在の価格を取得
     
-    end = now['time']
-    params = {"count":46,"granularity":asi,"to":end}
-    r = instruments.InstrumentsCandles(instrument=ex_pair, params=params,)
-    apires = api.request(r)
-    res = r.response['candles']
-    end = res[0]['time']
-    n = 0
-    res1 = res
-    #print('res ok', i+1, 'and', 'time =', res1[0]['time'])
+        end = now['time']
+        params = {"count":46,"granularity":asi,"to":end}
+        r = instruments.InstrumentsCandles(instrument=ex_pair, params=params,)
+        apires = api.request(r)
+        res = r.response['candles']
+        end = res[0]['time']
+        n = 0
+        res1 = res
+        #print('res ok', i+1, 'and', 'time =', res1[0]['time'])
 
-    #print('GET Finish!',i*10 - n) #どのくらいデータを取得したか確認
+        #print('GET Finish!',i*10 - n) #どのくらいデータを取得したか確認
 
-    data = []
-    price = []
-    #少し形を成形してあげる
-    for raw in res1:
-        data.append([raw['time'], raw['mid']['o'], raw['mid']['h'], raw['mid']['l'], raw['mid']['c']])
-    #DataFrameに変換
-    df = pd.DataFrame(data)
-    df.columns = ['date', 'open', 'high', 'low', 'close']
+        data = []
+        price = []
+        #形を成形
+        for raw in res1:
+            data.append([raw['time'], raw['mid']['o'], raw['mid']['h'], raw['mid']['l'], raw['mid']['c']])
+        #DataFrameに変換
+        df = pd.DataFrame(data)
+        df.columns = ['date', 'open', 'high', 'low', 'close']
+    
+        #時間を全て日本時間に変更する。
+        for i in df['date']:
+            i = pd.Timestamp(i).tz_convert('Asia/Tokyo')
 
-    #時間を全て日本時間に変更する。
-    for i in df['date']:
-        i = pd.Timestamp(i).tz_convert('Asia/Tokyo')
+        df.iloc[:, 0] = df.iloc[:, 0].astype('datetime64[ns]')
+        df.iloc[:, 1:] = df.iloc[:, 1:].astype('float')
+    except:
+        params1 = {"instruments": ex_pair}
+        psnow = pricing.PricingInfo(accountID=account_id, params=params1)
+        now = api.request(psnow) #現在の価格を取得
+    
+        end = now['time']
+        params = {"count":46,"granularity":asi,"to":end}
+        r = instruments.InstrumentsCandles(instrument=ex_pair, params=params,)
+        apires = api.request(r)
+        res = r.response['candles']
+        end = res[0]['time']
+        n = 0
+        res1 = res
+        #print('res ok', i+1, 'and', 'time =', res1[0]['time'])
 
-    df.iloc[:, 0] = df.iloc[:, 0].astype('datetime64[ns]')
-    df.iloc[:, 1:] = df.iloc[:, 1:].astype('float')
+        #print('GET Finish!',i*10 - n) #どのくらいデータを取得したか確認
+
+        data = []
+        price = []
+        #形を成形
+        for raw in res1:
+            data.append([raw['time'], raw['mid']['o'], raw['mid']['h'], raw['mid']['l'], raw['mid']['c']])
+        #DataFrameに変換
+        df = pd.DataFrame(data)
+        df.columns = ['date', 'open', 'high', 'low', 'close']
+    
+        #時間を全て日本時間に変更する。
+        for i in df['date']:
+            i = pd.Timestamp(i).tz_convert('Asia/Tokyo')
+
+        df.iloc[:, 0] = df.iloc[:, 0].astype('datetime64[ns]')
+        df.iloc[:, 1:] = df.iloc[:, 1:].astype('float')
     return df
 
 #MACDの値を返す関数を定義する。（引数はロウソク足の終値）
@@ -75,6 +108,7 @@ def macd_data(data):
     #短期と長期の指数平滑移動平均、MACDのリスト、signalのリスト
     Lema, Sema, MACD, signal = [], [], [], []
     num = 0
+    num2 = 0
     d = []
     for m in data:
         d.append(m)
@@ -90,11 +124,21 @@ def macd_data(data):
             Sema.append(Sema[num-1]*(1-(2/13))+d[i-1]*2/13)
             MACD.append(Sema[num]-Lema[num])
             num+=1
+    for i in range(9, len(MACD)):
+        if i == 9 and num2 == 0:
+            signal.append(mean(MACD[i-9:i]))
+            num2+=1
+        elif i != 9:
+            signal.append(signal[num2-1]*(1-(2/10))+MACD[i-1]*2/10)
+            num2+=1
     #MACDとsignalの値を返す
-    return MACD
+    return MACD, signal
 #MACDのシグナルを計算
 def macd_signal(MACD, signal):
-    MACD_signal = (MACD - signal)
+    MACD_signal = []
+    MACD = MACD[9:]
+    for i in range(len(MACD)):
+        MACD_signal.append(MACD[i] - signal[i])
     return MACD_signal
 def make_df(df, df_rev):  
     df_rev = df_rev.drop('date', axis=1)
@@ -215,71 +259,125 @@ def extract_x_y(df: pd.DataFrame):
     return x, y
 
 #買い
-def buy_signal(now_price, flag, account_id, api, b, s, a,):
-    #ここに買い注文コードを入れる
-    b.append(now_price)
-    data = {
-        "order": {
-            "instrument": "USD_JPY",
-            "units": "+20000",
-            "type": "MARKET",
+def buy_signal(now_price, flag, account_id, api, b, s, a, times):
+    try:
+        b.append(now_price)
+        data = {
+            "order": {
+                "instrument": "USD_JPY",
+                "units": "+20000",
+                "type": "MARKET",
+            }
         }
-    }
-    ticket = orders.OrderCreate(account_id, data=data)
-    api.request(ticket)
-    return b
+        ticket = orders.OrderCreate(account_id, data=data)
+        api.request(ticket)
+        times = 0
+        flag["buy_signal"] = 1
+    except V20Error:
+        b.append(now_price)
+        data = {
+            "order": {
+                "instrument": "USD_JPY",
+                "units": "+20000",
+                "type": "MARKET",
+            }
+        }
+        ticket = orders.OrderCreate(account_id, data=data)
+        api.request(ticket)
+        times = 0
+        flag["buy_signal"] = 1
+    print("b")
+    return b, times, flag
 #売り
-def sell_signal(now_price, flag, account_id, api, b, s, a,):
-    #ここに売り注文コードを入れる
-    s.append(now_price)
-    data = {
-        "order": {
-            "instrument": "USD_JPY",
-            "units": "-20000",
-            "type": "MARKET",
+def sell_signal(now_price, flag, account_id, api, b, s, a, times):
+    try:
+        s.append(now_price)
+        data = {
+            "order": {
+                "instrument": "USD_JPY",
+                "units": "-20000",
+                "type": "MARKET",
+            }
         }
-    }
-    ticket = orders.OrderCreate(account_id, data=data)
-    api.request(ticket)
-    return s
+        ticket = orders.OrderCreate(account_id, data=data)
+        api.request(ticket)
+        times = 0
+        flag["sell_signal"] = 1
+    except V20Error:
+        s.append(now_price)
+        data = {
+            "order": {
+                "instrument": "USD_JPY",
+                "units": "-20000",
+                "type": "MARKET",
+            }
+        }
+        ticket = orders.OrderCreate(account_id, data=data)
+        api.request(ticket)
+        times = 0
+        flag["sell_signal"] = 1
+    print("s")
+    return s, times, flag
 #決済
-def close_signal(now_price, flag, account_id, api, b, s, a, lot):
+def close_signal(now_price, flag, account_id, api, b, s, a, lot, times):
     i = 0
     j = 0
     if flag["buy_signal"] == 1:
-        data = {"longUnits":"ALL"}
-        ticket = positions.PositionClose(accountID=account_id, instrument="USD_JPY", data=data)
-        api.request(ticket)
+        try:
+            data = {"longUnits":"ALL"}
+            ticket = positions.PositionClose(accountID=account_id, instrument="USD_JPY", data=data)
+            api.request(ticket)
+            times = 0
+            flag["buy_signal"] = 0
+            while i < len(b):
+                d = b[i]
+                #print(now_price, "-", d)
+                a += now_price*lot - d*lot - 0.008*lot
+                i += 1
+        except V20Error:
+            data = {"longUnits":"ALL"}
+            ticket = positions.PositionClose(accountID=account_id, instrument="USD_JPY", data=data)
+            api.request(ticket)
+            times = 0
+            flag["buy_signal"] = 0
+            while i < len(b):
+                d = b[i]
+                #print(now_price, "-", d)
+                a += now_price*lot - d*lot - 0.008*lot
+                i += 1        
         
-        while i < len(b):
-            #print(i)
-            #r = positions.PositionClose(accountID=account_id, instrument="USD_JPY", data=data)
-            #api.request(r)
-            d = b[i]
-            #print(now_price, "-", d)
-            a += now_price*lot - d*lot - 0.008*lot
-            i += 1
-            
     if flag["sell_signal"] == 1:
-        data = {"shortUnits":"ALL"}
-        r = positions.PositionClose(accountID=account_id, instrument="USD_JPY", data=data)
-        api.request(r)
-
-        while j < len(s):
-            #print(j)
-            #r = positions.PositionClose(accountID=account_id, instrument="USD_JPY", data=data)
-            #api.request(r)
-            d = s[j]
-            #print(d, "-", now_price)
-            a += d*lot - now_price*lot - 0.008*lot
-            j += 1
+        try:
+            data = {"shortUnits":"ALL"}
+            ticket = positions.PositionClose(accountID=account_id, instrument="USD_JPY", data=data)
+            api.request(ticket)
+            times = 0
+            while j < len(s):
+                d = s[j]
+                #print(d, "-", now_price)
+                a += d*lot - now_price*lot - 0.008*lot
+                j += 1
+            flag["sell_signal"] = 0
+        except V20Error:
+            data = {"shortUnits":"ALL"}
+            ticket = positions.PositionClose(accountID=account_id, instrument="USD_JPY", data=data)
+            api.request(ticket)
+            times = 0
+            while j < len(s):
+                d = s[j]
+                #print(d, "-", now_price)
+                a += d*lot - now_price*lot - 0.008*lot
+                j += 1
+            flag["sell_signal"] = 0
+        
     print(a)
     if a < -50000:
         print("fail")
         while a < -50000:
             a = a
     y = []
-    return y, a
+    return y, a, times, flag
+
 class Model(nn.Module):
     def __init__(self, input_dim, output_dim, hidden_dim=500):
         #print(input_dim, output_dim)
@@ -341,7 +439,7 @@ a = 0
 model = Model(20, 5).to(device)
 model.load_state_dict(torch.load(loa_path))
 model.eval()
-times = 400
+times = 240
 old_price = 0
 while True:
     df_all = get_mdata(ex_pair, api, asi)
@@ -349,27 +447,23 @@ while True:
     now_price = df_all.iloc[45, 4]
     if old_price == 0:
         old_price = now_price
-    if abs(now_price - old_price) > 15:
+    if abs(now_price - old_price) > 1:
         if flag["sell_signal"] == 1:
             s, a = close_signal(now_price, flag, account_id, api, b, s, a, lot)
             flag["sell_signal"] = 0
         if flag["buy_signal"] == 1:
              b, a = close_signal(now_price, flag, account_id, api, b, s, a, lot)
              flag["buy_signal"] = 1
-    if times == 400:
+    if times == 240:
         df_all = get_mdata(ex_pair, api, asi)
         old_price = df_all.iloc[45, 4]
         df_clo = df_all['close']
-        MACD = macd_data(df_clo)
-        #MACD_signal = macd_signal(MACD, signal)
-        df_mac = pd.Series(MACD)
+        MACD, signal = macd_data(df_clo)
+        MACD_signal = macd_signal(MACD, signal)
+        df_mac = pd.Series(MACD_signal)
         df = make_df(df_mac, df_all)
         sh = df.shape
         df.columns = range(sh[1])
-        """
-        df = df.drop(len(df)-1)
-        df = df.drop(len(df)-1)
-        """
         #print(df)
         
         x, y = extract_x_y(df)
@@ -377,7 +471,6 @@ while True:
     
         data = make_data(x.to_numpy(), y.to_numpy())
         #データローダの設定
-        #train_dataloader = DataLoader(data_train, batch_size=1, shuffle=True)
         vali_dataloader = DataLoader(data, batch_size=1, shuffle=False)
         for (x, t) in vali_dataloader:
             x, t = x.to(device), t.to(device)
@@ -388,27 +481,20 @@ while True:
             #print(pre)
             pre = torch.argmax(pre)
             #print(pre)
-            """
-        if flag["sell_signal"] == 1:
-            s, a = close_signal(flag, account_id, api, b, s, a, lot)
-            flag["sell_signal"] = 0
-        if flag["buy_signal"] == 1:
-            b, a = close_signal(flag, account_id, api, b, s, a, lot)
-            flag["buy_signal"] = 0
-            """
-        if  pre == 0 or pre == 1:
+   
+        if pre == 0:
             if flag["sell_signal"] == 1:
-                s, a = close_signal(now_price, flag, account_id, api, b, s, a, lot)
-                flag["sell_signal"] = 0
-            flag["buy_signal"] = 1
-            b = buy_signal(now_price, flag, account_id, api, b, s, a)
-        elif pre == 2 or pre == 3:
+                s, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, times)
+            b, times, flag = buy_signal(now_price, flag, account_id, api, b, s, a, times)
+        elif pre == 1 and flag["sell_signal"] == 1:
+                s, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, times)
+        elif pre == 2:
             if flag["buy_signal"] == 1:
-                b, a = close_signal(now_price, flag, account_id, api, b, s, a, lot)
-                flag["buy_signal"] = 0
-            flag["sell_signal"] = 1
-            s = sell_signal(now_price, flag, account_id, api, b, s, a)
-        times = 0
+                b, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, times)
+            s, times, flag = sell_signal(now_price, flag, account_id, api, b, s, a, times)
+        elif pre == 3 and flag["buy_signal"] == 1:
+                b, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, times)
+        
     else:
         times += 1
     time.sleep(5)
