@@ -1,5 +1,4 @@
 # FX_MACD
-***
 Automatic trading of FX using machine learning  
 This trading use MACD which technical indicator
 
