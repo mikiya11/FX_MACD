@@ -4,7 +4,7 @@ from statistics import mean,stdev
 from torch.utils.data import DataLoader
 import torch.nn as nn
 from torchvision import models
-
+import os
 #「学習」
 import torch
 import torch.optim as optimizers
@@ -12,6 +12,7 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 import copy
 
 filename = './data/USDJPY_M1.csv'
+os.remove('./data/train_log.csv')
 #MACDの値を返す関数を定義する。（引数はロウソク足の終値）
 def macd_data(data):
     #短期と長期の指数平滑移動平均、MACDのリスト、signalのリスト
