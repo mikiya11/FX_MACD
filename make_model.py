@@ -183,10 +183,10 @@ df_no = df.loc[df.iloc[:, 0] == 5]
 
 
 #データ数の調整
-num_buy = df_buy.shape[0]       #データ数49111個
-num_buy2 = df_buy2.shape[0]     #データ数100652個
-num_sell = df_sell.shape[0]     #データ数48332個
-num_sell2 = df_sell2.shape[0]   #データ数97857個
+num_buy = df_buy.shape[0]       #データ数63151個
+num_buy2 = df_buy2.shape[0]     #データ数86612個
+num_sell = df_sell.shape[0]     #データ数61818個
+num_sell2 = df_sell2.shape[0]   #データ数84371個
 num_no = df_no.shape[0]         #データ数6785個
 
 
