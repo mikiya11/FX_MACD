@@ -99,15 +99,15 @@ def make_df(df, df_rev):
     #print(len(df_al))
     #label作成
     for i in range(len(df_al)-1):
-        if df_al.iloc[i, 1] < df_al.iloc[i+1, 80] and abs(df_al.iloc[i, 1] - df_al.iloc[i+1, 80]) > 0.05:
+        if df_al.iloc[i, 80] < df_al.iloc[i+1, 80] and abs(df_al.iloc[i, 80] - df_al.iloc[i+1, 80]) > 0.04:
             df_al.iloc[i, 0] = 1
-        elif df_al.iloc[i, 1] < df_al.iloc[i+1, 80] and abs(df_al.iloc[i, 1] - df_al.iloc[i+1, 80]) <= 0.05:
+        elif df_al.iloc[i, 80] < df_al.iloc[i+1, 80] and abs(df_al.iloc[i, 80] - df_al.iloc[i+1, 80]) <= 0.04:
             df_al.iloc[i, 0] = 2
-        elif df_al.iloc[i, 1] > df_al.iloc[i+1, 80] and abs(df_al.iloc[i, 1] - df_al.iloc[i+1, 80]) > 0.05:
+        elif df_al.iloc[i, 80] > df_al.iloc[i+1, 80] and abs(df_al.iloc[i, 80] - df_al.iloc[i+1, 80]) > 0.04:
             df_al.iloc[i, 0] = 3
-        elif df_al.iloc[i, 1] > df_al.iloc[i+1, 80] and abs(df_al.iloc[i, 1] - df_al.iloc[i+1, 80]) <= 0.05:
+        elif df_al.iloc[i, 80] > df_al.iloc[i+1, 80] and abs(df_al.iloc[i, 80] - df_al.iloc[i+1, 80]) <= 0.04:
             df_al.iloc[i, 0] = 4
-        elif df_al.iloc[i, 1] == df_al.iloc[i+1, 80]:
+        elif df_al.iloc[i, 80] == df_al.iloc[i+1, 80]:
             df_al.iloc[i, 0] = 5
     df_al = df_al.drop(df_al.index[[0]])
     df_al = df_al.drop(df_al.index[[0]])
@@ -182,20 +182,21 @@ df_sell2 = df.loc[df.iloc[:, 0] == 4]
 df_no = df.loc[df.iloc[:, 0] == 5]
 
 
-#データ数の決定
-num_buy = df_buy.shape[0]       #データ数69354個
-num_buy2 = df_buy2.shape[0]     #データ数82138個
-num_sell = df_sell.shape[0]     #データ数67079個
-num_sell2 = df_sell2.shape[0]   #データ数79757個
-num_no = df_no.shape[0]         #データ数4411個
+#データ数の調整
+num_buy = df_buy.shape[0]       #データ数49111個
+num_buy2 = df_buy2.shape[0]     #データ数100652個
+num_sell = df_sell.shape[0]     #データ数48332個
+num_sell2 = df_sell2.shape[0]   #データ数97857個
+num_no = df_no.shape[0]         #データ数6785個
 
-"""
+
+
 print(df_buy)
 print(df_buy2)
 print(df_sell)
 print(df_sell2)
 print(df_no)
-"""
+
 
 
 #データの分割
@@ -342,7 +343,7 @@ def vali_step(x, t):
 
     return loss, preds
 
-epochs = 500
+epochs = 400
 
 log = dict(epoch=[], train_loss=[], train_acc=[], vali_loss=[], vali_acc=[])
 
