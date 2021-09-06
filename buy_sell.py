@@ -25,7 +25,7 @@ loa_path = 'FXmodel.pth'
 
 
 config = configparser.ConfigParser()
-config.read('./data/account.txt') 、
+config.read('./data/account.txt')
 account_id = config['oanda']['account_id']  # ID
 api_key = config['oanda']['api_key']        #トークンパス
 ex_pair = config['oanda']['pair']           #対象通貨
@@ -42,7 +42,7 @@ def get_mdata(ex_pair, api, asi):
     except V20Error:
         now = api.request(psnow) #現在の価格を取得
     end = now['time']
-    params = {"count":55,"granularity":asi,"to":end}
+    params = {"count":100,"granularity":asi,"to":end}
     r = instruments.InstrumentsCandles(instrument=ex_pair, params=params,)
     try:
         apires = api.request(r)
@@ -328,7 +328,7 @@ old_price = 0
 while True:
     df_all = get_mdata(ex_pair, api, asi)
     #print(df_all)
-    now_price = df_all.iloc[45, 4]
+    now_price = df_all.iloc[99, 4]
     if old_price == 0:
         old_price = now_price
     if abs(now_price - old_price) > 10:
@@ -340,7 +340,8 @@ while True:
              flag["buy_signal"] = 1
     if times == 240:
         df_all = get_mdata(ex_pair, api, asi)
-        old_price = df_all.iloc[55, 4]
+        #print(df_all)
+        old_price = df_all.iloc[99, 4]
         df_clo = df_all['close']
         MACD, signal = macd_data(df_clo)
         MACD_signal = macd_signal(MACD, signal)
@@ -349,6 +350,8 @@ while True:
         df = make_df(df_mac, df_all)
         sh = df.shape
         df.columns = range(sh[1])
+        df = df.drop(0)
+        df = df.drop(1)
         #print(df)  
         x, y = extract_x_y(df)
         data = make_data(x.to_numpy(), y.to_numpy())
