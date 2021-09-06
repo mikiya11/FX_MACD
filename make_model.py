@@ -12,7 +12,10 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 import copy
 
 filename = './data/USDJPY_M1.csv'
-os.remove('./data/train_log.csv')
+try:
+    os.remove('./data/train_log.csv')
+except:
+    pass
 #MACDの値を返す関数を定義する。（引数はロウソク足の終値）
 def macd_data(data):
     #短期と長期の指数平滑移動平均、MACDのリスト、signalのリスト
@@ -52,68 +55,26 @@ def macd_signal(MACD, signal):
     return MACD_signal
 def make_df(df, df_rev):  
     df_rev = df_rev.drop('date', axis=1)
-    df_1 = df_rev[::20]
-    df_2 = df_rev[1::20]
-    df_3 = df_rev[2::20]
-    df_4 = df_rev[3::20]
-    df_5 = df_rev[4::20]
-    df_6 = df_rev[5::20]
-    df_7 = df_rev[6::20]
-    df_8 = df_rev[7::20]
-    df_9 = df_rev[8::20]
-    df_10 = df_rev[9::20]
-    df_11 = df_rev[10::20]
-    df_12 = df_rev[11::20]
-    df_13 = df_rev[12::20]
-    df_14 = df_rev[13::20]
-    df_15 = df_rev[14::20]
-    df_16 = df_rev[15::20]
-    df_17 = df_rev[16::20]
-    df_18 = df_rev[17::20]
-    df_19 = df_rev[18::20]
-    df_20 = df_rev[19::20]
-
-    df_1 = df_1.reset_index(drop=True)
-    df_2 = df_2.reset_index(drop=True)
-    df_3 = df_3.reset_index(drop=True)
-    df_4 = df_4.reset_index(drop=True)
-    df_5 = df_5.reset_index(drop=True)
-    df_6 = df_6.reset_index(drop=True)
-    df_7= df_7.reset_index(drop=True)
-    df_8 = df_8.reset_index(drop=True)
-    df_9 = df_9.reset_index(drop=True)
-    df_10 = df_10.reset_index(drop=True)
-    df_11 = df_11.reset_index(drop=True)
-    df_12 = df_12.reset_index(drop=True)
-    df_13 = df_13.reset_index(drop=True)
-    df_14 = df_14.reset_index(drop=True)
-    df_15 = df_15.reset_index(drop=True)
-    df_16 = df_16.reset_index(drop=True)
-    df_17= df_17.reset_index(drop=True)
-    df_18 = df_18.reset_index(drop=True)
-    df_19 = df_19.reset_index(drop=True)
-    df_20 = df_20.reset_index(drop=True)
-
-    df_al = pd.concat([df_1, df_2, df_3, df_4, df_5, df_6, df_7, df_8, df_9, df_10, df_11, df_12, df_13, df_14, df_15, df_16, df_17, df_18, df_19, df_20], axis='columns')
-    df_al.insert(0, 'label', 0)
-    #print(df_al)
-    #print(len(df_al))
     #label作成
+    df_20 = df_rev[19::20]
+    df_al = df_20.reset_index(drop=True)
+    df_al.insert(0, 'label', 0)
     for i in range(len(df_al)-1):
-        if df_al.iloc[i, 80] < df_al.iloc[i+1, 80] and abs(df_al.iloc[i, 80] - df_al.iloc[i+1, 80]) > 0.04:
+        if df_al.iloc[i, 1] < df_al.iloc[i+1, 1] and abs(df_al.iloc[i, 1] - df_al.iloc[i+1, 1]) > 0.04:
             df_al.iloc[i, 0] = 1
-        elif df_al.iloc[i, 80] < df_al.iloc[i+1, 80] and abs(df_al.iloc[i, 80] - df_al.iloc[i+1, 80]) <= 0.04:
+        elif df_al.iloc[i, 1] < df_al.iloc[i+1, 1] and abs(df_al.iloc[i, 1] - df_al.iloc[i+1, 1]) <= 0.04:
             df_al.iloc[i, 0] = 2
-        elif df_al.iloc[i, 80] > df_al.iloc[i+1, 80] and abs(df_al.iloc[i, 80] - df_al.iloc[i+1, 80]) > 0.04:
+        elif df_al.iloc[i, 1] > df_al.iloc[i+1, 1] and abs(df_al.iloc[i, 1] - df_al.iloc[i+1, 1]) > 0.04:
             df_al.iloc[i, 0] = 3
-        elif df_al.iloc[i, 80] > df_al.iloc[i+1, 80] and abs(df_al.iloc[i, 80] - df_al.iloc[i+1, 80]) <= 0.04:
+        elif df_al.iloc[i, 1] > df_al.iloc[i+1, 1] and abs(df_al.iloc[i, 1] - df_al.iloc[i+1, 1]) <= 0.04:
             df_al.iloc[i, 0] = 4
-        elif df_al.iloc[i, 80] == df_al.iloc[i+1, 80]:
+        elif df_al.iloc[i, 1] == df_al.iloc[i+1, 1]:
             df_al.iloc[i, 0] = 5
     df_al = df_al.drop(df_al.index[[0]])
     df_al = df_al.drop(df_al.index[[0]])
     df_al = df_al.reset_index(drop=True)
     #print(df_al)
+    #MACDデータ作成
     df_1 = df[::20]
     df_2 = df[1::20]
     df_3 = df[2::20]
@@ -157,7 +118,6 @@ def make_df(df, df_rev):
     df_20 = df_20.reset_index(drop=True)
     df_a = df_al.iloc[:, 0] 
     df = pd.concat([df_a, df_1, df_2, df_3, df_4, df_5, df_6, df_7, df_8, df_9, df_10, df_11, df_12, df_13, df_14, df_15, df_16, df_17, df_18, df_19, df_20], axis='columns')
-
     sh = df.shape
     df.columns = range(sh[1])
     return df
@@ -191,13 +151,13 @@ num_sell2 = df_sell2.shape[0]   #データ数84371個
 num_no = df_no.shape[0]         #データ数6785個
 
 
-
+"""
 print(df_buy)
 print(df_buy2)
 print(df_sell)
 print(df_sell2)
 print(df_no)
-
+"""
 
 
 #データの分割
@@ -306,7 +266,7 @@ class Model(nn.Module):
         return x
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-#device = torch.device('cpu')
+
 """
 print(x_train)
 print(x_vali)
@@ -327,9 +287,7 @@ def compute_loss(t, y): #損失関数の計算
 
 def train_step(x, t):
     model.train() #ネットワークを学習モードに
-    #print(x)
     preds = model(x) #訓練データxから出力を求める
-    #print(preds, t)
     loss = compute_loss(t, preds) #出力と正解の誤差を求める
     optimizer.zero_grad() #勾配のリセット
     loss.backward() #誤差逆伝播
@@ -383,16 +341,7 @@ for epoch in range(epochs):
 
     vali_loss /= len(vali_dataloader)
     vali_acc /= len(vali_dataloader)
-#epochごとの結果を学習・検証結果の表示->logに記録
-    """
-    print('epoch: {}, train_loss: {:.3}, train_acc: {:.3f}, vali_loss: {:.3f}, vali_acc: {:.3f}'.format(
-        epoch+1,
-        train_loss,
-        train_acc,
-        vali_loss,
-        vali_acc
-    ))
-"""
+#epochごとの結果をlogに記録
     if vali_loss < best_loss:
         print("best loss updated")
         # preserve the best parameters
@@ -404,6 +353,5 @@ for epoch in range(epochs):
     log['train_acc'].append(train_acc)
     log['vali_loss'].append(vali_loss)
     log['vali_acc'].append(vali_acc)
-    #log['pre'].append(pre)
     pd.DataFrame(log).to_csv('./data/train_log.csv')
 
