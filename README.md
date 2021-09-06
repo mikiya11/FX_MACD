@@ -9,7 +9,7 @@ oandapyv20 0.6.3
 **How to use**   
 1.install pytorch,pandas,numpy,oandapyv20  
 2.Input id and token for data/account.txt  
-3.Run make_model.py
+3.Run make_model.py  
   ・print `best loss updated`  
 4.Run buy_sell.py  
   ・print `b`  `s`  `number`    
