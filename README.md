@@ -10,9 +10,9 @@ oandapyv20 0.6.3
 1.install pytorch,pandas,numpy,oandapyv20  
 2.Input id and token for data/account.txt  
 3.Run make_model.py  
- _print `best loss updated`  
+ - print `best loss updated`  
 4.Run buy_sell.py  
- _print `b`  `s`  `number`    
+ - print `b`  `s`  `number`    
 b=buy  
 s=sell  
 number=total profit and loss
