@@ -9,6 +9,7 @@ import oandapyV20.endpoints.pricing as pricing
 import oandapyV20.endpoints.orders as orders
 import oandapyV20.endpoints.positions as positions
 import oandapyV20.endpoints.trades as trades
+from oandapyV20.exceptions import V20Error
 from datetime import datetime, timedelta
 from torch.utils.data import DataLoader
 import torch
@@ -19,7 +20,7 @@ from torchvision import models
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import copy
 import time
-
+#modelパス
 loa_path = 'FXmodel.pth'
 
 
@@ -30,7 +31,7 @@ api_key = config['oanda']['api_key']
 
 api = oandapyV20.API(access_token=api_key, environment="live")
 
-lot = 20000 #lot数 buy,sell手動
+lot = 20000 #lot数 
 ex_pair = "USD_JPY" #対象通貨を指定
 
 
@@ -191,15 +192,15 @@ def make_df(df, df_rev):
     #print(len(df_al))
     #label作成
     for i in range(len(df_al)-1):
-        if df_al.iloc[i, 1] < df_al.iloc[i+1, 80] and abs(df_al.iloc[i, 1] - df_al.iloc[i+1, 80]) > 0.05:
+        if df_al.iloc[i, 80] < df_al.iloc[i+1, 80] and abs(df_al.iloc[i, 80] - df_al.iloc[i+1, 80]) > 0.05:
             df_al.iloc[i, 0] = 1
-        elif df_al.iloc[i, 1] < df_al.iloc[i+1, 80] and abs(df_al.iloc[i, 1] - df_al.iloc[i+1, 80]) <= 0.05:
+        elif df_al.iloc[i, 80] < df_al.iloc[i+1, 80] and abs(df_al.iloc[i, 80] - df_al.iloc[i+1, 80]) <= 0.05:
             df_al.iloc[i, 0] = 2
-        elif df_al.iloc[i, 1] > df_al.iloc[i+1, 80] and abs(df_al.iloc[i, 1] - df_al.iloc[i+1, 80]) > 0.05:
+        elif df_al.iloc[i, 80] > df_al.iloc[i+1, 80] and abs(df_al.iloc[i, 80] - df_al.iloc[i+1, 80]) > 0.05:
             df_al.iloc[i, 0] = 3
-        elif df_al.iloc[i, 1] > df_al.iloc[i+1, 80] and abs(df_al.iloc[i, 1] - df_al.iloc[i+1, 80]) <= 0.05:
+        elif df_al.iloc[i, 80] > df_al.iloc[i+1, 80] and abs(df_al.iloc[i, 80] - df_al.iloc[i+1, 80]) <= 0.05:
             df_al.iloc[i, 0] = 4
-        elif df_al.iloc[i, 1] == df_al.iloc[i+1, 80]:
+        elif df_al.iloc[i, 80] == df_al.iloc[i+1, 80]:
             df_al.iloc[i, 0] = 5
     #df_al = df_al.drop(df_al.index[[0]])
     df_al = df_al.drop(df_al.index[[0]])
@@ -259,13 +260,14 @@ def extract_x_y(df: pd.DataFrame):
     return x, y
 
 #買い
-def buy_signal(now_price, flag, account_id, api, b, s, a, times):
+def buy_signal(now_price, flag, account_id, api, b, s, a, lot, times):
+    lot = str(lot)
     try:
         b.append(now_price)
         data = {
             "order": {
                 "instrument": "USD_JPY",
-                "units": "+20000",
+                "units": "+"+lot,
                 "type": "MARKET",
             }
         }
@@ -278,7 +280,7 @@ def buy_signal(now_price, flag, account_id, api, b, s, a, times):
         data = {
             "order": {
                 "instrument": "USD_JPY",
-                "units": "+20000",
+                "units": "+"+lot,
                 "type": "MARKET",
             }
         }
@@ -289,13 +291,14 @@ def buy_signal(now_price, flag, account_id, api, b, s, a, times):
     print("b")
     return b, times, flag
 #売り
-def sell_signal(now_price, flag, account_id, api, b, s, a, times):
+def sell_signal(now_price, flag, account_id, api, b, s, a, lot, times):
+    lot = str(lot)
     try:
         s.append(now_price)
         data = {
             "order": {
                 "instrument": "USD_JPY",
-                "units": "-20000",
+                "units": "-"+lot,
                 "type": "MARKET",
             }
         }
@@ -308,7 +311,7 @@ def sell_signal(now_price, flag, account_id, api, b, s, a, times):
         data = {
             "order": {
                 "instrument": "USD_JPY",
-                "units": "-20000",
+                "units": "-"+lot,
                 "type": "MARKET",
             }
         }
@@ -447,7 +450,7 @@ while True:
     now_price = df_all.iloc[45, 4]
     if old_price == 0:
         old_price = now_price
-    if abs(now_price - old_price) > 1:
+    if abs(now_price - old_price) > 10:
         if flag["sell_signal"] == 1:
             s, a = close_signal(now_price, flag, account_id, api, b, s, a, lot)
             flag["sell_signal"] = 0
@@ -481,20 +484,14 @@ while True:
             #print(pre)
             pre = torch.argmax(pre)
             #print(pre)
-   
+        if flag["sell_signal"] == 1:
+            s, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, times)
+        if flag["buy_signal"] == 1:
+            b, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, times)
         if pre == 0:
-            if flag["sell_signal"] == 1:
-                s, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, times)
-            b, times, flag = buy_signal(now_price, flag, account_id, api, b, s, a, times)
-        elif pre == 1 and flag["sell_signal"] == 1:
-                s, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, times)
+            b, times, flag = buy_signal(now_price, flag, account_id, api, b, s, a, lot, times)
         elif pre == 2:
-            if flag["buy_signal"] == 1:
-                b, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, times)
-            s, times, flag = sell_signal(now_price, flag, account_id, api, b, s, a, times)
-        elif pre == 3 and flag["buy_signal"] == 1:
-                b, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, times)
-        
+            s, times, flag = sell_signal(now_price, flag, account_id, api, b, s, a, lot, times)       
     else:
         times += 1
     time.sleep(5)
