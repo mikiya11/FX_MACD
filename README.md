@@ -1,6 +1,6 @@
 # FX_MACD
 Automatic trading of FX using machine learning  
-This trading use MACD which technical indicator
+This trading uses the technical indicator MACD
 
 python 3.8.5  
 pytorch 1.7.1  
