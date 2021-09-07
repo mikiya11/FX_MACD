@@ -12,13 +12,13 @@ from torchvision import models
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import copy
 config = configparser.ConfigParser()
-config.read('./data/accountm.txt')
+config.read('./data/account.txt')
 ex_pair = config['oanda']['pair']           #対象通貨
 asi = config['oanda']['asi']
 
-filename = './data/'+pair+'_'+asi+'.csv'
+filename = './data/'+ex_pair+'_'+asi+'.csv'
 try:
-    os.remove('./data/train_log.csv')
+    os.remove('./data/train_log'+'_'+ex_pair+'_'+asi+'.csv')
 except:
     pass
 #MACDの値を返す関数を定義する。（引数はロウソク足の終値）
@@ -155,14 +155,13 @@ num_sell = df_sell.shape[0]     #データ数61818個
 num_sell2 = df_sell2.shape[0]   #データ数84371個
 num_no = df_no.shape[0]         #データ数6785個
 
-
-print(df_buy)
-print(df_buy2)
-print(df_sell)
-print(df_sell2)
-print(df_no)
-
-
+"""
+print(num_buy)
+print(num_buy2)
+print(num_sell)
+print(num_sell2)
+print(num_no)
+"""
 
 #データの分割
 def extract_train_vali_test(df, train_ratio=0.8, vali_ratio=0.1):
@@ -343,11 +342,11 @@ for epoch in range(epochs):
         # preserve the best parameters
         best_model_params = copy.deepcopy(model.state_dict())
         best_loss = vali_loss
-        torch.save(best_model_params, 'FXmodel'+'_'+pair+'.pth')
+        torch.save(best_model_params, 'FXmodel'+'_'+ex_pair+'_'+asi+'.pth')
     log['epoch'].append(epoch+1)
     log['train_loss'].append(train_loss)
     log['train_acc'].append(train_acc)
     log['vali_loss'].append(vali_loss)
     log['vali_acc'].append(vali_acc)
-    pd.DataFrame(log).to_csv('./data/train_log'+'_'+pair+'.csv')
+    pd.DataFrame(log).to_csv('./data/train_log'+'_'+ex_pair+'_'+asi+'.csv')
 
