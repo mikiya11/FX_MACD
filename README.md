@@ -16,4 +16,6 @@ You can change exchange pair,lot,chart bar,learning date by data/account.txt
   ・print `b`  `s`  `number`    
 b=buy  
 s=sell  
-number=total profit and loss
+number=total profit and loss  
+
+If you want to trade other than USD_JPY and GBP_JPY, change data/account.txt and run getdata.py
