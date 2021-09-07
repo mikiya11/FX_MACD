@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import japanize_matplotlib
 import configparser
 config = configparser.ConfigParser()
-config.read('./data/accountm.txt')
+config.read('./data/account.txt')
 ex_pair = config['oanda']['pair']           #対象通貨
 data = pd.read_csv('./data/train_log'+'_'+ex_pair+'.csv',encoding = 'UTF8')
 
