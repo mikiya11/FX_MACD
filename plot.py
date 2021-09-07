@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import japanize_matplotlib
 
-data = pd.read_csv('./data/train_log.csv',encoding = 'UTF8')
+data = pd.read_csv('./data/train_log'+'_'+pair+'.csv',encoding = 'UTF8')
 
 data = data.iloc[:, 2:]
 
