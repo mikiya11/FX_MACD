@@ -183,12 +183,12 @@ def extract_x_y(df: pd.DataFrame):
     return x, y
 
 #買い
-def buy_signal(now_price, flag, account_id, api, b, s, a, lot, times):
+def buy_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times):
     lot = str(lot)
     b.append(now_price)
     data = {
          "order": {
-            "instrument": "USD_JPY",
+            "instrument": ex_pair,
             "units": "+"+lot,
             "type": "MARKET",
         }
@@ -203,12 +203,12 @@ def buy_signal(now_price, flag, account_id, api, b, s, a, lot, times):
     print("b")
     return b, times, flag
 #売り
-def sell_signal(now_price, flag, account_id, api, b, s, a, lot, times):
+def sell_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times):
     lot = str(lot)
     s.append(now_price)
     data = {
          "order": {
-             "instrument": "USD_JPY",
+             "instrument": ex_pair,
              "units": "-"+lot,
             "type": "MARKET",
         }
@@ -223,13 +223,13 @@ def sell_signal(now_price, flag, account_id, api, b, s, a, lot, times):
     print("s")
     return s, times, flag
 #決済
-def close_signal(now_price, flag, account_id, api, b, s, a, lot, times):
+def close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times):
     i = 0
     j = 0
     lot = float(lot)
     if flag["buy_signal"] == 1:
         data = {"longUnits":"ALL"}
-        ticket = positions.PositionClose(accountID=account_id, instrument="USD_JPY", data=data)
+        ticket = positions.PositionClose(accountID=account_id, instrument=ex_pair, data=data)
         try:
             api.request(ticket)
         except V20Error:
@@ -244,7 +244,7 @@ def close_signal(now_price, flag, account_id, api, b, s, a, lot, times):
         
     if flag["sell_signal"] == 1:
         data = {"shortUnits":"ALL"}
-        ticket = positions.PositionClose(accountID=account_id, instrument="USD_JPY", data=data)
+        ticket = positions.PositionClose(accountID=account_id, instrument=ex_pair, data=data)
         try:
             api.request(ticket)
         except V20Error:
@@ -336,16 +336,16 @@ while True:
         old_price = now_price
     if abs(now_price - old_price) > 10:
         if flag["sell_signal"] == 1:
-            s, a = close_signal(now_price, flag, account_id, api, b, s, a, lot)
+            s, a = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
             flag["sell_signal"] = 0
         if flag["buy_signal"] == 1:
-             b, a = close_signal(now_price, flag, account_id, api, b, s, a, lot)
+             b, a = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
              flag["buy_signal"] = 1
     if now_price - old_price > 0.04 and flag["buy_signal"] == 1:
-        b, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, times)
+        b, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
         times = 240
     elif old_price - now_price > 0.04 and flag["sell_signal"] == 1:
-        s, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, times)
+        s, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
         times = 240
     if times == 240:
         df_all = get_mdata(ex_pair, api, asi)
@@ -376,13 +376,13 @@ while True:
             pre = torch.argmax(pre)
             #print(pre)
         if flag["sell_signal"] == 1:
-            s, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, times)
+            s, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
         if flag["buy_signal"] == 1:
-            b, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, times)
+            b, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
         if pre == 0:
-            b, times, flag = buy_signal(now_price, flag, account_id, api, b, s, a, lot, times)
+            b, times, flag = buy_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
         elif pre == 2:
-            s, times, flag = sell_signal(now_price, flag, account_id, api, b, s, a, lot, times)
+            s, times, flag = sell_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
         
     else:
         times += 1
