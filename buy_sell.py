@@ -226,6 +226,7 @@ def sell_signal(now_price, flag, account_id, api, b, s, a, lot, times):
 def close_signal(now_price, flag, account_id, api, b, s, a, lot, times):
     i = 0
     j = 0
+    lot = float(lot)
     if flag["buy_signal"] == 1:
         data = {"longUnits":"ALL"}
         ticket = positions.PositionClose(accountID=account_id, instrument="USD_JPY", data=data)
@@ -340,6 +341,12 @@ while True:
         if flag["buy_signal"] == 1:
              b, a = close_signal(now_price, flag, account_id, api, b, s, a, lot)
              flag["buy_signal"] = 1
+    if now_price - old_price > 0.04 and flag["buy_signal"] == 1:
+        b, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, times)
+        times = 240
+    elif old_price - now_price > 0.04 and flag["sell_signal"] == 1:
+        s, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, times)
+        times = 240
     if times == 240:
         df_all = get_mdata(ex_pair, api, asi)
         #print(df_all)
@@ -375,7 +382,8 @@ while True:
         if pre == 0:
             b, times, flag = buy_signal(now_price, flag, account_id, api, b, s, a, lot, times)
         elif pre == 2:
-            s, times, flag = sell_signal(now_price, flag, account_id, api, b, s, a, lot, times)       
+            s, times, flag = sell_signal(now_price, flag, account_id, api, b, s, a, lot, times)
+        
     else:
         times += 1
     time.sleep(5)
