@@ -20,8 +20,7 @@ from torchvision import models
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import copy
 import time
-#modelパス
-loa_path = 'FXmodel.pth'
+
 
 
 config = configparser.ConfigParser()
@@ -32,6 +31,8 @@ ex_pair = config['oanda']['pair']           #対象通貨
 lot = config['oanda']['lot']                #lot数 
 asi = config['oanda']['asi']                #取得した時間足
 
+#modelパス
+loa_path = 'FXmodel'+'_'+ex_pair+'_'+asi+'.pth'
 api = oandapyV20.API(access_token=api_key, environment="live")
 
 def get_mdata(ex_pair, api, asi):
