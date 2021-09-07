@@ -5,3 +5,4 @@ pair = USD_JPY
 lot = 20000
 asi = M1
 get_date = 2005-01-02T19:12:00
+epoch = 400
