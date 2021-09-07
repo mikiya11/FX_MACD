@@ -24,7 +24,7 @@ import time
 
 
 config = configparser.ConfigParser()
-config.read('./data/accountm.txt')
+config.read('./data/account.txt')
 account_id = config['oanda']['account_id']  # ID
 api_key = config['oanda']['api_key']        #トークンパス
 ex_pair = config['oanda']['pair']           #対象通貨
