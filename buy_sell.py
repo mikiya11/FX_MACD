@@ -25,7 +25,7 @@ loa_path = 'FXmodel.pth'
 
 
 config = configparser.ConfigParser()
-config.read('./data/account.txt')
+config.read('./data/accountm.txt')
 account_id = config['oanda']['account_id']  # ID
 api_key = config['oanda']['api_key']        #トークンパス
 ex_pair = config['oanda']['pair']           #対象通貨
@@ -329,6 +329,7 @@ while True:
     df_all = get_mdata(ex_pair, api, asi)
     #print(df_all)
     now_price = df_all.iloc[99, 4]
+    #print(now_price)
     if old_price == 0:
         old_price = now_price
     if abs(now_price - old_price) > 10:
