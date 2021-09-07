@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from statistics import mean,stdev
+import configparser
 import os
 #「学習」
 import torch
@@ -10,8 +11,12 @@ import torch.nn as nn
 from torchvision import models
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import copy
+config = configparser.ConfigParser()
+config.read('./data/accountm.txt')
+ex_pair = config['oanda']['pair']           #対象通貨
+asi = config['oanda']['asi']
 
-filename = './data/USDJPY_M1.csv'
+filename = './data/'+pair+'_'+asi+'.csv'
 try:
     os.remove('./data/train_log.csv')
 except:
@@ -151,13 +156,12 @@ num_sell2 = df_sell2.shape[0]   #データ数84371個
 num_no = df_no.shape[0]         #データ数6785個
 
 
-"""
 print(df_buy)
 print(df_buy2)
 print(df_sell)
 print(df_sell2)
 print(df_no)
-"""
+
 
 
 #データの分割
@@ -267,14 +271,6 @@ class Model(nn.Module):
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-"""
-print(x_train)
-print(x_vali)
-print(x_test)
-print(y_train)
-print(y_vali)
-print(y_test)
-"""
 x_dim = x_train.shape[1] #入力要素数(特徴量の要素数)
 y_dim = 5 #出力要素数
 model = Model(x_dim, y_dim).to(device) #モデルの定義
@@ -347,11 +343,11 @@ for epoch in range(epochs):
         # preserve the best parameters
         best_model_params = copy.deepcopy(model.state_dict())
         best_loss = vali_loss
-        torch.save(best_model_params, 'FXmodel.pth')
+        torch.save(best_model_params, 'FXmodel'+'_'+pair+'.pth')
     log['epoch'].append(epoch+1)
     log['train_loss'].append(train_loss)
     log['train_acc'].append(train_acc)
     log['vali_loss'].append(vali_loss)
     log['vali_acc'].append(vali_acc)
-    pd.DataFrame(log).to_csv('./data/train_log.csv')
+    pd.DataFrame(log).to_csv('./data/train_log'+'_'+pair+'.csv')
 
