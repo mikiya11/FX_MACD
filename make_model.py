@@ -15,7 +15,7 @@ config = configparser.ConfigParser()
 config.read('./data/account.txt')
 ex_pair = config['oanda']['pair']           #対象通貨
 asi = config['oanda']['asi']
-
+epochs = int(config['oanda']['epoch'])
 filename = './data/'+ex_pair+'_'+asi+'.csv'
 try:
     os.remove('./data/train_log'+'_'+ex_pair+'_'+asi+'.csv')
@@ -296,8 +296,6 @@ def vali_step(x, t):
     loss = criterion(preds, t)
 
     return loss, preds
-
-epochs = 400
 
 log = dict(epoch=[], train_loss=[], train_acc=[], vali_loss=[], vali_acc=[])
 
