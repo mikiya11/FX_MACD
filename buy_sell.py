@@ -20,7 +20,7 @@ from torchvision import models
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import copy
 import time
-
+import re
 
 
 config = configparser.ConfigParser()
@@ -30,9 +30,11 @@ api_key = config['oanda']['api_key']        #トークンパス
 ex_pair = config['oanda']['pair']           #対象通貨
 lot = config['oanda']['lot']                #lot数 
 asi = config['oanda']['asi']                #取得した時間足
+bar = config['oanda']['bar']                #予測先
 
 #modelパス
-loa_path = 'FXmodel'+'_'+ex_pair+'_'+asi+'.pth'
+loa_path = 'FXmodel'+'_'+ex_pair+'_'+asi+'_'+bar+'.pth'
+bar = int(bar)
 api = oandapyV20.API(access_token=api_key, environment="live")
 
 def get_mdata(ex_pair, api, asi):
@@ -43,7 +45,7 @@ def get_mdata(ex_pair, api, asi):
     except V20Error:
         now = api.request(psnow) #現在の価格を取得
     end = now['time']
-    params = {"count":100,"granularity":asi,"to":end}
+    params = {"count":55,"granularity":asi,"to":end}
     r = instruments.InstrumentsCandles(instrument=ex_pair, params=params,)
     try:
         apires = api.request(r)
@@ -108,71 +110,41 @@ def macd_signal(MACD, signal):
     for i in range(len(MACD)):
         MACD_signal.append(MACD[i] - signal[i])
     return MACD_signal
-def make_df(df, df_rev):  
-    df_rev = df_rev.drop('date', axis=1)
+#dfを成形
+def make_df(df, df_all, bar):
     #label作成
-    df_20 = df_rev[19::20]
-    df_al = df_20.reset_index(drop=True)
-    df_al.insert(0, 'label', 0)
-    for i in range(len(df_al)-1):
-        if df_al.iloc[i, 1] < df_al.iloc[i+1, 1] and abs(df_al.iloc[i, 1] - df_al.iloc[i+1, 1]) > 0.04:
-            df_al.iloc[i, 0] = 1
-        elif df_al.iloc[i, 1] < df_al.iloc[i+1, 1] and abs(df_al.iloc[i, 1] - df_al.iloc[i+1, 1]) <= 0.04:
-            df_al.iloc[i, 0] = 2
-        elif df_al.iloc[i, 1] > df_al.iloc[i+1, 1] and abs(df_al.iloc[i, 1] - df_al.iloc[i+1, 1]) > 0.04:
-            df_al.iloc[i, 0] = 3
-        elif df_al.iloc[i, 1] > df_al.iloc[i+1, 1] and abs(df_al.iloc[i, 1] - df_al.iloc[i+1, 1]) <= 0.04:
-            df_al.iloc[i, 0] = 4
-        elif df_al.iloc[i, 1] == df_al.iloc[i+1, 1]:
-            df_al.iloc[i, 0] = 5
-    df_al = df_al.drop(df_al.index[[0]])
-    df_al = df_al.drop(df_al.index[[0]])
-    df_al = df_al.reset_index(drop=True)
+    df_al = df_all[['close']]
+    df_al2 = df_al.shift(-bar)
+    sh = df_al2.shape
+    df_al2.columns = range(sh[1]) 
+    df_al3 = (df_al.iloc[:, 0] - df_al2.iloc[:, 0])
+    df_al3 = df_al3.shift(-35)
+    df_al3 = df_al3.dropna(how='any')  
+    idx_1 = df_al3.index[df_al3 > 0.04]
+    idx_2 = df_al3.index[(df_al3 < 0.04)&(df_al3 > 0)]
+    idx_3 = df_al3.index[df_al3 < -0.04]
+    idx_4 = df_al3.index[(df_al3 > -0.04)&(df_al3 < 0)]
+    idx_5 = df_al3.index[df_al3 == 0]
+        
+    df_al3[idx_1] = 1
+    df_al3[idx_2] = 2
+    df_al3[idx_3] = 3
+    df_al3[idx_4] = 4
+    df_al3[idx_5] = 5
+
     #print(df_al)
     #MACDデータ作成
-    df_1 = df[::20]
-    df_2 = df[1::20]
-    df_3 = df[2::20]
-    df_4 = df[3::20]
-    df_5 = df[4::20]
-    df_6 = df[5::20]
-    df_7 = df[6::20]
-    df_8 = df[7::20]
-    df_9 = df[8::20]
-    df_10 = df[9::20]
-    df_11 = df[10::20]
-    df_12 = df[11::20]
-    df_13 = df[12::20]
-    df_14 = df[13::20]
-    df_15 = df[14::20]
-    df_16 = df[15::20]
-    df_17 = df[16::20]
-    df_18 = df[17::20]
-    df_19 = df[18::20]
-    df_20 = df[19::20]
-
-    df_1 = df_1.reset_index(drop=True)
-    df_2 = df_2.reset_index(drop=True)
-    df_3 = df_3.reset_index(drop=True)
-    df_4 = df_4.reset_index(drop=True)
-    df_5 = df_5.reset_index(drop=True)
-    df_6 = df_6.reset_index(drop=True)
-    df_7= df_7.reset_index(drop=True)
-    df_8 = df_8.reset_index(drop=True)
-    df_9 = df_9.reset_index(drop=True)
-    df_10 = df_10.reset_index(drop=True)
-    df_11 = df_11.reset_index(drop=True)
-    df_12 = df_12.reset_index(drop=True)
-    df_13 = df_13.reset_index(drop=True)
-    df_14 = df_14.reset_index(drop=True)
-    df_15 = df_15.reset_index(drop=True)
-    df_16 = df_16.reset_index(drop=True)
-    df_17= df_17.reset_index(drop=True)
-    df_18 = df_18.reset_index(drop=True)
-    df_19 = df_19.reset_index(drop=True)
-    df_20 = df_20.reset_index(drop=True)
-    df_a = df_al.iloc[:, 0] 
-    df = pd.concat([df_a, df_1, df_2, df_3, df_4, df_5, df_6, df_7, df_8, df_9, df_10, df_11, df_12, df_13, df_14, df_15, df_16, df_17, df_18, df_19, df_20], axis='columns')
+    for i in range(bar-1):
+        if i == 0:
+            df_shift = df
+        df_shift = df_shift.shift(-1)
+        df = pd.concat([df, df_shift], axis=1)
+        
+    #結合
+    sh = df.shape
+    df.columns = range(sh[1])
+    df = df.dropna(how='any') 
+    df = pd.concat([df_al3, df], axis=1)
     sh = df.shape
     df.columns = range(sh[1])
     return df
@@ -325,12 +297,21 @@ a = 0
 model = Model(20, 5).to(device)
 model.load_state_dict(torch.load(loa_path))
 model.eval()
-times = 240
+if 'S' in asi :
+    mini = int(re.sub(r"\D", "", asi))/5
+if 'M' in asi:
+    mini = (int(re.sub(r"\D", "", asi))*60)/5
+if 'H' in asi:
+    mini = (int(re.sub(r"\D", "", asi))*360)/5
+if 'D' in asi:
+    mini = (int(re.sub(r"\D", "", asi))*8640)/5
+times = (bar * mini)
+print(times)
 old_price = 0
 while True:
     df_all = get_mdata(ex_pair, api, asi)
     #print(df_all)
-    now_price = df_all.iloc[99, 4]
+    now_price = df_all.iloc[54, 4]
     #print(now_price)
     if old_price == 0:
         old_price = now_price
@@ -341,27 +322,22 @@ while True:
         if flag["buy_signal"] == 1:
              b, a = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
              flag["buy_signal"] = 1
-    if now_price - old_price > 0.04 and flag["buy_signal"] == 1:
+    if now_price - old_price > 0.03 and flag["buy_signal"] == 1:
         b, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
-        times = 240
-    elif old_price - now_price > 0.04 and flag["sell_signal"] == 1:
+        times = (bar * mini)
+    elif old_price - now_price > 0.03 and flag["sell_signal"] == 1:
         s, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
-        times = 240
-    if times == 240:
+        times = (bar * mini)
+    if times == (bar * mini):
         df_all = get_mdata(ex_pair, api, asi)
         #print(df_all)
-        old_price = df_all.iloc[99, 4]
+        old_price = df_all.iloc[54, 4]
         df_clo = df_all['close']
         MACD, signal = macd_data(df_clo)
         MACD_signal = macd_signal(MACD, signal)
         df_mac = pd.Series(MACD_signal)
-        df_mac = df_mac.iloc[5:]
-        df = make_df(df_mac, df_all)
-        sh = df.shape
-        df.columns = range(sh[1])
-        df = df.drop(0)
-        df = df.drop(1)
-        #print(df)  
+        df = make_df(df_mac, df_all, bar)
+        #df = df.iloc[-1, :]  
         x, y = extract_x_y(df)
         data = make_data(x.to_numpy(), y.to_numpy())
         #データローダの設定
@@ -369,9 +345,7 @@ while True:
         for (x, t) in vali_dataloader:
             x, t = x.to(device), t.to(device)
             model.eval() #ネットワークを推論モードに
-            preds = model(x)
-            #print(preds)
-            pre = preds
+            pre = model(x) 
             #print(pre)
             pre = torch.argmax(pre)
             #print(pre)
