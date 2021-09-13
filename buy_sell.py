@@ -306,7 +306,7 @@ if 'H' in asi:
 if 'D' in asi:
     mini = (int(re.sub(r"\D", "", asi))*8640)/5
 times = (bar * mini)
-print(times)
+#print(times)
 old_price = 0
 while True:
     df_all = get_mdata(ex_pair, api, asi, bar)
