@@ -13,12 +13,13 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 import copy
 config = configparser.ConfigParser()
 config.read('./data/account.txt')
-ex_pair = config['oanda']['pair']           #対象通貨
+ex_pair = config['oanda']['pair']           
 asi = config['oanda']['asi']
 epochs = int(config['oanda']['epoch'])
+bar = config['oanda']['bar']
 filename = './data/'+ex_pair+'_'+asi+'.csv'
 try:
-    os.remove('./data/train_log'+'_'+ex_pair+'_'+asi+'.csv')
+    os.remove('./data/train_log'+'_'+ex_pair+'_'+asi+'_'+bar+'.csv')
 except:
     pass
 #MACDの値を返す関数を定義する。（引数はロウソク足の終値）
@@ -58,71 +59,41 @@ def macd_signal(MACD, signal):
     for i in range(len(MACD)):
         MACD_signal.append(MACD[i] - signal[i])
     return MACD_signal
-def make_df(df, df_rev):  
-    df_rev = df_rev.drop('date', axis=1)
+def make_df(df, df_all, bar):
+    bar = int(bar)
     #label作成
-    df_20 = df_rev[19::20]
-    df_al = df_20.reset_index(drop=True)
-    df_al.insert(0, 'label', 0)
-    for i in range(len(df_al)-1):
-        if df_al.iloc[i, 1] < df_al.iloc[i+1, 1] and abs(df_al.iloc[i, 1] - df_al.iloc[i+1, 1]) > 0.04:
-            df_al.iloc[i, 0] = 1
-        elif df_al.iloc[i, 1] < df_al.iloc[i+1, 1] and abs(df_al.iloc[i, 1] - df_al.iloc[i+1, 1]) <= 0.04:
-            df_al.iloc[i, 0] = 2
-        elif df_al.iloc[i, 1] > df_al.iloc[i+1, 1] and abs(df_al.iloc[i, 1] - df_al.iloc[i+1, 1]) > 0.04:
-            df_al.iloc[i, 0] = 3
-        elif df_al.iloc[i, 1] > df_al.iloc[i+1, 1] and abs(df_al.iloc[i, 1] - df_al.iloc[i+1, 1]) <= 0.04:
-            df_al.iloc[i, 0] = 4
-        elif df_al.iloc[i, 1] == df_al.iloc[i+1, 1]:
-            df_al.iloc[i, 0] = 5
-    df_al = df_al.drop(df_al.index[[0]])
-    df_al = df_al.drop(df_al.index[[0]])
-    df_al = df_al.reset_index(drop=True)
+    df_al = df_all[['close']]
+    df_al2 = df_al.shift(-bar)
+    sh = df_al2.shape
+    df_al2.columns = range(sh[1]) 
+    df_al3 = (df_al.iloc[:, 0] - df_al2.iloc[:, 0])
+    df_al3 = df_al3.shift(-35)
+    df_al3 = df_al3.dropna(how='any')  
+    idx_1 = df_al3.index[df_al3 > 0.04]
+    idx_2 = df_al3.index[(df_al3 < 0.04)&(df_al3 > 0)]
+    idx_3 = df_al3.index[df_al3 < -0.04]
+    idx_4 = df_al3.index[(df_al3 > -0.04)&(df_al3 < 0)]
+    idx_5 = df_al3.index[df_al3 == 0]
+        
+    df_al3[idx_1] = 1
+    df_al3[idx_2] = 2
+    df_al3[idx_3] = 3
+    df_al3[idx_4] = 4
+    df_al3[idx_5] = 5
+
     #print(df_al)
     #MACDデータ作成
-    df_1 = df[::20]
-    df_2 = df[1::20]
-    df_3 = df[2::20]
-    df_4 = df[3::20]
-    df_5 = df[4::20]
-    df_6 = df[5::20]
-    df_7 = df[6::20]
-    df_8 = df[7::20]
-    df_9 = df[8::20]
-    df_10 = df[9::20]
-    df_11 = df[10::20]
-    df_12 = df[11::20]
-    df_13 = df[12::20]
-    df_14 = df[13::20]
-    df_15 = df[14::20]
-    df_16 = df[15::20]
-    df_17 = df[16::20]
-    df_18 = df[17::20]
-    df_19 = df[18::20]
-    df_20 = df[19::20]
-
-    df_1 = df_1.reset_index(drop=True)
-    df_2 = df_2.reset_index(drop=True)
-    df_3 = df_3.reset_index(drop=True)
-    df_4 = df_4.reset_index(drop=True)
-    df_5 = df_5.reset_index(drop=True)
-    df_6 = df_6.reset_index(drop=True)
-    df_7= df_7.reset_index(drop=True)
-    df_8 = df_8.reset_index(drop=True)
-    df_9 = df_9.reset_index(drop=True)
-    df_10 = df_10.reset_index(drop=True)
-    df_11 = df_11.reset_index(drop=True)
-    df_12 = df_12.reset_index(drop=True)
-    df_13 = df_13.reset_index(drop=True)
-    df_14 = df_14.reset_index(drop=True)
-    df_15 = df_15.reset_index(drop=True)
-    df_16 = df_16.reset_index(drop=True)
-    df_17= df_17.reset_index(drop=True)
-    df_18 = df_18.reset_index(drop=True)
-    df_19 = df_19.reset_index(drop=True)
-    df_20 = df_20.reset_index(drop=True)
-    df_a = df_al.iloc[:, 0] 
-    df = pd.concat([df_a, df_1, df_2, df_3, df_4, df_5, df_6, df_7, df_8, df_9, df_10, df_11, df_12, df_13, df_14, df_15, df_16, df_17, df_18, df_19, df_20], axis='columns')
+    for i in range(bar-1):
+        if i == 0:
+            df_shift = df
+        df_shift = df_shift.shift(-1)
+        df = pd.concat([df, df_shift], axis=1)
+        
+    #結合
+    sh = df.shape
+    df.columns = range(sh[1])
+    df = df.dropna(how='any') 
+    df = pd.concat([df_al3, df], axis=1)
     sh = df.shape
     df.columns = range(sh[1])
     return df
@@ -133,11 +104,8 @@ MACD, signal = macd_data(df_clo)
 #print(MACD, signal)
 MACD_signal = macd_signal(MACD, signal)
 df_mac = pd.Series(MACD_signal)
-df_mac = df_mac.iloc[5:]
 #print(df_mac)
-df = make_df(df_mac, df_all)
-sh = df.shape
-df.columns = range(sh[1])
+df = make_df(df_mac, df_all, bar)
 #print(df)
 
 #ラベル別分類する．
@@ -149,11 +117,11 @@ df_no = df.loc[df.iloc[:, 0] == 5]
 
 
 #データ数の調整
-num_buy = df_buy.shape[0]       #データ数63151個
-num_buy2 = df_buy2.shape[0]     #データ数86612個
-num_sell = df_sell.shape[0]     #データ数61818個
-num_sell2 = df_sell2.shape[0]   #データ数84371個
-num_no = df_no.shape[0]         #データ数6785個
+num_buy = df_buy.shape[0]       #データ数1236512個
+num_buy2 = df_buy2.shape[0]     #データ数1687827個
+num_sell = df_sell.shape[0]     #データ数1264026個
+num_sell2 = df_sell2.shape[0]   #データ数1730528個
+num_no = df_no.shape[0]         #データ数135852個
 
 """
 print(num_buy)
@@ -340,11 +308,11 @@ for epoch in range(epochs):
         # preserve the best parameters
         best_model_params = copy.deepcopy(model.state_dict())
         best_loss = vali_loss
-        torch.save(best_model_params, 'FXmodel'+'_'+ex_pair+'_'+asi+'.pth')
+        torch.save(best_model_params, 'FXmodel'+'_'+ex_pair+'_'+asi+'_'+bar+'.pth')
     log['epoch'].append(epoch+1)
     log['train_loss'].append(train_loss)
     log['train_acc'].append(train_acc)
     log['vali_loss'].append(vali_loss)
     log['vali_acc'].append(vali_acc)
-    pd.DataFrame(log).to_csv('./data/train_log'+'_'+ex_pair+'_'+asi+'.csv')
+    pd.DataFrame(log).to_csv('./data/train_log'+'_'+ex_pair+'_'+asi+'_'+bar+'.csv')
 
