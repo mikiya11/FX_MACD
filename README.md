@@ -13,18 +13,21 @@ You can change exchange pair,lot,chart bar,learning date...etc by data/account.t
 3.Run make_model.py  
   ・print `best loss updated`  
 4.Run buy_sell.py  
-  ・print `b`  `s`  `number`    
-b=buy  
-s=sell  
-number=total profit and loss  
+  ・print `b`  `s`  `number`  *2    
+ 
 
 If you want to trade other than USD_JPY and GBP_JPY, change data/account.txt and run getdata.py
+*1
+|account_id|account id|
+|api_key|API token|
+|pair|exchange pair|
+|lot|lot|
+|asi|chart bar time|
+|date|training date start|
+|epoch|number times training|
+|bar|prediction bar|  
 
-*1:	|account_id|account id|
-	|api_key|API token|
-	|pair|exchange pair|
-	|lot|lot|
-	|asi|chart bar time|
-	|date|training date start|
-	|epoch|number times training|
-	|bar|prediction bar| 
+*2
+b=buy  
+s=sell  
+number=total profit and loss 
