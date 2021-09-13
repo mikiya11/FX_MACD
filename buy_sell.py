@@ -317,11 +317,9 @@ while True:
         old_price = now_price
     if abs(now_price - old_price) > 10:
         if flag["sell_signal"] == 1:
-            s, a = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
-            flag["sell_signal"] = 0
+            s, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
         if flag["buy_signal"] == 1:
-             b, a = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
-             flag["buy_signal"] = 1
+            b, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
     if now_price - old_price > 0.03 and flag["buy_signal"] == 1:
         b, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
         times = (bar * mini)
