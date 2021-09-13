@@ -6,7 +6,9 @@ config = configparser.ConfigParser()
 config.read('./data/account.txt')
 ex_pair = config['oanda']['pair']           #対象通貨
 asi = config['oanda']['asi']
-data = pd.read_csv('./data/train_log'+'_'+ex_pair+'_'+asi+'.csv',encoding = 'UTF8')
+bar = config['oanda']['bar']
+
+data = pd.read_csv('./data/train_log'+'_'+ex_pair+'_'+asi+'_'+bar+'.csv',encoding = 'UTF8')
 
 data = data.iloc[:, 2:]
 
