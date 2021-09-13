@@ -37,7 +37,7 @@ loa_path = 'FXmodel'+'_'+ex_pair+'_'+asi+'_'+bar+'.pth'
 bar = int(bar)
 api = oandapyV20.API(access_token=api_key, environment="live")
 
-def get_mdata(ex_pair, api, asi):
+def get_mdata(ex_pair, api, asi, bar):
     params1 = {"instruments": ex_pair}
     psnow = pricing.PricingInfo(accountID=account_id, params=params1)
     try:
@@ -45,7 +45,7 @@ def get_mdata(ex_pair, api, asi):
     except V20Error:
         now = api.request(psnow) #現在の価格を取得
     end = now['time']
-    params = {"count":55,"granularity":asi,"to":end}
+    params = {"count":35 + bar,"granularity":asi,"to":end}
     r = instruments.InstrumentsCandles(instrument=ex_pair, params=params,)
     try:
         apires = api.request(r)
@@ -309,7 +309,7 @@ times = (bar * mini)
 print(times)
 old_price = 0
 while True:
-    df_all = get_mdata(ex_pair, api, asi)
+    df_all = get_mdata(ex_pair, api, asi, bar)
     #print(df_all)
     now_price = df_all.iloc[54, 4]
     #print(now_price)
@@ -329,15 +329,14 @@ while True:
         s, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
         times = (bar * mini)
     if times == (bar * mini):
-        df_all = get_mdata(ex_pair, api, asi)
+        df_all = get_mdata(ex_pair, api, asi, bar)
         #print(df_all)
         old_price = df_all.iloc[54, 4]
         df_clo = df_all['close']
         MACD, signal = macd_data(df_clo)
         MACD_signal = macd_signal(MACD, signal)
         df_mac = pd.Series(MACD_signal)
-        df = make_df(df_mac, df_all, bar)
-        #df = df.iloc[-1, :]  
+        df = make_df(df_mac, df_all, bar)  
         x, y = extract_x_y(df)
         data = make_data(x.to_numpy(), y.to_numpy())
         #データローダの設定
