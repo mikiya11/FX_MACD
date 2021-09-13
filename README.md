@@ -16,18 +16,15 @@ You can change exchange pair,lot,chart bar,learning date...etc by data/account.t
   ・print `b`  `s`  `number`  *2    
  
 
-If you want to trade other than USD_JPY and GBP_JPY, change data/account.txt and run getdata.py
-*1
-|account_id|account id|
-|api_key|API token|
-|pair|exchange pair|
-|lot|lot|
-|asi|chart bar time|
-|date|training date start|
-|epoch|number times training|
-|bar|prediction bar|  
+If you want to trade other than USD_JPY and GBP_JPY, change data/account.txt and run getdata.py  
 
-*2
+*1  
+|account_id|api_key|pair|lot|asi|date|epoch|bar|
+|:---|:---|:---|:---|:---|:---|:---|:---|
+|account id|API token|exchange pair|lot|chart bar time|training date start|number times training|prediction bar|
+
+  
+*2  
 b=buy  
 s=sell  
 number=total profit and loss 
