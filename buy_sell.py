@@ -21,10 +21,10 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 import copy
 import time
 import re
-
+import math
 
 config = configparser.ConfigParser()
-config.read('./data/account.txt')
+config.read('./data/accountm.txt')
 account_id = config['oanda']['account_id']  # ID
 api_key = config['oanda']['api_key']        #トークンパス
 ex_pair = config['oanda']['pair']           #対象通貨
@@ -112,6 +112,7 @@ def macd_signal(MACD, signal):
     return MACD_signal
 #dfを成形
 def make_df(df, df_all, bar):
+    bar = int(bar)
     #label作成
     df_al = df_all[['close']]
     df_al2 = df_al.shift(-bar)
@@ -119,20 +120,37 @@ def make_df(df, df_all, bar):
     df_al2.columns = range(sh[1]) 
     df_al3 = (df_al.iloc[:, 0] - df_al2.iloc[:, 0])
     df_al3 = df_al3.shift(-35)
-    df_al3 = df_al3.dropna(how='any')  
-    idx_1 = df_al3.index[df_al3 > 0.04]
-    idx_2 = df_al3.index[(df_al3 < 0.04)&(df_al3 > 0)]
-    idx_3 = df_al3.index[df_al3 < -0.04]
-    idx_4 = df_al3.index[(df_al3 > -0.04)&(df_al3 < 0)]
-    idx_5 = df_al3.index[df_al3 == 0]
-        
-    df_al3[idx_1] = 1
-    df_al3[idx_2] = 2
-    df_al3[idx_3] = 3
-    df_al3[idx_4] = 4
-    df_al3[idx_5] = 5
+    df_al3 = df_al3.dropna(how='any')
+    df_label = df_al3
+    #上、下、そのままに三分割
+    idx_up = df_al3.index[df_al3 > 0]
+    idx_down = df_al3.index[df_al3 < 0]
+    idx_no = df_al3.index[df_al3 == 0]
+    df_al3 = pd.DataFrame(df_al3, columns = ['diff'])
+    df_al3 = df_al3.assign(label=0)
+    df_al3.iloc[idx_up, 1] = 1
+    df_al3.iloc[idx_down, 1] = 2
+    df_up = df_al3[df_al3.iloc[:, 1] == 1]
+    df_down = df_al3[df_al3.iloc[:, 1] == 2]
+    #さらに分割して５つに分ける
+    df_up = df_up.sort_values('diff', ascending=False)
+    df_down = df_down.sort_values('diff', ascending=False)
+    len_up = math.floor(len(df_up)/2)
+    len_down = math.floor(len(df_down)/2)
+    df_1 = df_up[len_up:]
+    df_2 = df_up[:len_up-1]
+    df_3 = df_down[len_down+1:]
+    df_4 = df_down[:len_down]
+    idx_1 = list(df_1.index)
+    idx_2 = list(df_2.index)
+    idx_3 = list(df_3.index)
+    idx_4 = list(df_4.index)
+    df_label[idx_1] = 1
+    df_label[idx_2] = 2
+    df_label[idx_3] = 3
+    df_label[idx_4] = 4
+    df_label[idx_no] = 5
 
-    #print(df_al)
     #MACDデータ作成
     for i in range(bar-1):
         if i == 0:
@@ -144,7 +162,7 @@ def make_df(df, df_all, bar):
     sh = df.shape
     df.columns = range(sh[1])
     df = df.dropna(how='any') 
-    df = pd.concat([df_al3, df], axis=1)
+    df = pd.concat([df_label, df], axis=1)
     sh = df.shape
     df.columns = range(sh[1])
     return df
@@ -166,10 +184,12 @@ def buy_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times):
         }
     }
     ticket = orders.OrderCreate(account_id, data=data)
+    
     try:
         api.request(ticket)
     except V20Error:
         api.request(ticket)
+    
     times = 0
     flag["buy_signal"] = 1
     print("b")
@@ -186,10 +206,12 @@ def sell_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times):
         }
     }
     ticket = orders.OrderCreate(account_id, data=data)
+    
     try:
         api.request(ticket)
     except V20Error:
         api.request(ticket)
+    
     times = 0
     flag["sell_signal"] = 1
     print("s")
@@ -202,10 +224,12 @@ def close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
     if flag["buy_signal"] == 1:
         data = {"longUnits":"ALL"}
         ticket = positions.PositionClose(accountID=account_id, instrument=ex_pair, data=data)
+        
         try:
             api.request(ticket)
         except V20Error:
             api.request(ticket)
+        
         times = 0
         flag["buy_signal"] = 0
         while i < len(b):
@@ -213,14 +237,16 @@ def close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
             #print(now_price, "-", d)
             a += now_price*lot - d*lot - 0.008*lot
             i += 1      
-        
+        flag["buy_signal"] = 0
     if flag["sell_signal"] == 1:
         data = {"shortUnits":"ALL"}
         ticket = positions.PositionClose(accountID=account_id, instrument=ex_pair, data=data)
+        
         try:
             api.request(ticket)
         except V20Error:
             api.request(ticket)
+        
         times = 0
         while j < len(s):
             d = s[j]
@@ -346,10 +372,10 @@ while True:
             #print(pre)
             pre = torch.argmax(pre)
             #print(pre)
-        if flag["sell_signal"] == 1:
-            s, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
-        if flag["buy_signal"] == 1:
+        if flag["buy_signal"] == 1 and pre != 0:
             b, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
+        if flag["sell_signal"] == 1 and pre != 2:
+            s, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
         if pre == 0:
             b, times, flag = buy_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
         elif pre == 2:
