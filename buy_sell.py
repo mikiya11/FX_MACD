@@ -24,7 +24,7 @@ import re
 import math
 
 config = configparser.ConfigParser()
-config.read('./data/accountm.txt')
+config.read('./data/account.txt')
 account_id = config['oanda']['account_id']  # ID
 api_key = config['oanda']['api_key']        #トークンパス
 ex_pair = config['oanda']['pair']           #対象通貨
@@ -374,11 +374,11 @@ while True:
             #print(pre)
         if flag["buy_signal"] == 1 and pre != 0:
             b, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
-        if flag["sell_signal"] == 1 and pre != 2:
+        if flag["sell_signal"] == 1 and pre != 3:
             s, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
         if pre == 0:
             b, times, flag = buy_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
-        elif pre == 2:
+        elif pre == 3:
             s, times, flag = sell_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
         
     else:
