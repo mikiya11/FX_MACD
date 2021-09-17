@@ -346,12 +346,7 @@ while True:
             s, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
         if flag["buy_signal"] == 1:
             b, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
-    if now_price - old_price > 0.03 and flag["buy_signal"] == 1:
-        b, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
-        times = (bar * mini)
-    elif old_price - now_price > 0.03 and flag["sell_signal"] == 1:
-        s, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
-        times = (bar * mini)
+    
     if times == (bar * mini):
         df_all = get_mdata(ex_pair, api, asi, bar)
         #print(df_all)
