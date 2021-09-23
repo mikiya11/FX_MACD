@@ -22,6 +22,7 @@ import copy
 import time
 import re
 import math
+from tabulate import tabulate
 
 config = configparser.ConfigParser()
 config.read('./data/account.txt')
@@ -31,6 +32,8 @@ ex_pair = config['oanda']['pair']           #対象通貨
 lot = config['oanda']['lot']                #lot数 
 asi = config['oanda']['asi']                #取得した時間足
 bar = config['oanda']['bar']                #予測先
+lim_up = float(config['oanda']['limit_up'])        #利確位置
+lim_down = float(config['oanda']['limit_down'])      #利確位置
 
 #modelパス
 loa_path = 'FXmodel'+'_'+ex_pair+'_'+asi+'_'+bar+'.pth'
@@ -173,94 +176,80 @@ def extract_x_y(df: pd.DataFrame):
     return x, y
 
 #買い
-def buy_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times):
+def buy_signal(now_price, flag, account_id, api, lot, ex_pair, times, lim_up, lim_down):
     lot = str(lot)
-    b.append(now_price)
+    profit = now_price + lim_up
+    loss = now_price + (lim_down*2)
+    profit = str(round(profit, 3))
+    loss = str(round(loss, 3))
     data = {
          "order": {
             "instrument": ex_pair,
             "units": "+"+lot,
             "type": "MARKET",
+            "positionFill": "DEFAULT",
+            "takeProfitOnFill": {
+                "timeInForce": "GTC",
+                "price": profit
+            },
+            "stopLossOnFill": {
+                "timeInForce": "GTC",
+                "price": loss
+            }
         }
     }
     ticket = orders.OrderCreate(account_id, data=data)
     
     try:
-        api.request(ticket)
+        res = api.request(ticket)
     except V20Error:
-        api.request(ticket)
-    
+        res = api.request(ticket)
+    now_price= res['orderFillTransaction']['price']  # 約定レート
     times = 0
     flag["buy_signal"] = 1
-    print("b")
-    return b, times, flag
+    headers = ["profit", "now_price", "loss", "trade"]
+    table = [(profit, now_price, loss, "buy")]
+    result=tabulate(table, headers)
+    print(result)
+    return times
 #売り
-def sell_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times):
+def sell_signal(now_price, flag, account_id, api, lot, ex_pair, times, lim_up, lim_down):
     lot = str(lot)
-    s.append(now_price)
+    profit = now_price + lim_down
+    loss = now_price +(lim_up*2)
+    profit = str(round(profit, 3))
+    loss = str(round(loss, 3))
     data = {
          "order": {
              "instrument": ex_pair,
              "units": "-"+lot,
-            "type": "MARKET",
+             "type": "MARKET",
+             "positionFill": "DEFAULT",
+             "takeProfitOnFill": {
+                "timeInForce": "GTC",
+                "price":profit
+            },
+            "stopLossOnFill": {
+                "timeInForce": "GTC",
+                "price": loss
+            }
         }
     }
     ticket = orders.OrderCreate(account_id, data=data)
     
     try:
-        api.request(ticket)
+        res = api.request(ticket)
     except V20Error:
-        api.request(ticket)
-    
+        res = api.request(ticket)
+    now_price= res['orderFillTransaction']['price']  # 約定レート
     times = 0
     flag["sell_signal"] = 1
-    print("s")
-    return s, times, flag
-#決済
-def close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times):
-    i = 0
-    j = 0
-    lot = float(lot)
-    if flag["buy_signal"] == 1:
-        data = {"longUnits":"ALL"}
-        ticket = positions.PositionClose(accountID=account_id, instrument=ex_pair, data=data)
-        
-        try:
-            api.request(ticket)
-        except V20Error:
-            api.request(ticket)
-        
-        times = 0
-        flag["buy_signal"] = 0
-        while i < len(b):
-            d = b[i]
-            #print(now_price, "-", d)
-            a += now_price*lot - d*lot - 0.008*lot
-            i += 1      
-        flag["buy_signal"] = 0
-    if flag["sell_signal"] == 1:
-        data = {"shortUnits":"ALL"}
-        ticket = positions.PositionClose(accountID=account_id, instrument=ex_pair, data=data)
-        
-        try:
-            api.request(ticket)
-        except V20Error:
-            api.request(ticket)
-        
-        times = 0
-        while j < len(s):
-            d = s[j]
-            #print(d, "-", now_price)
-            a += d*lot - now_price*lot - 0.008*lot
-            j += 1
-        flag["sell_signal"] = 0
-    print(a)
-    if a < -50000:
-        print("fail")
-        while a < -50000:
-            a = a
-    y = []
-    return y, a, times, flag
+    headers = ["profit", "now_price", "loss", "trade"]
+    table = [(profit, now_price, loss, "sell")]
+    result=tabulate(table, headers)
+    print(result)
+    return times
+
 
 class Model(nn.Module):
     def __init__(self, input_dim, output_dim, hidden_dim=500):
@@ -310,17 +299,8 @@ def make_data(x, y): #ラベルと特徴量を結合してリストにする
     return data
 
 #メイン
-flag = {"buy_signal" : 0,
-        "sell_signal" : 0,
-        "gold_signal" : 0,
-        "dead_signal" : 0,
-        "good_signal" : 0,
-        "bad_signal" :0
-	}
-b = []
-s = []
-a = 0
-model = Model(20, 5).to(device)
+
+model = Model(int(bar), 5).to(device)
 model.load_state_dict(torch.load(loa_path))
 model.eval()
 if 'S' in asi :
@@ -341,12 +321,6 @@ while True:
     #print(now_price)
     if old_price == 0:
         old_price = now_price
-    if abs(now_price - old_price) > 10:
-        if flag["sell_signal"] == 1:
-            s, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
-        if flag["buy_signal"] == 1:
-            b, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
-    
     if times == (bar * mini):
         df_all = get_mdata(ex_pair, api, asi, bar)
         #print(df_all)
@@ -367,14 +341,11 @@ while True:
             #print(pre)
             pre = torch.argmax(pre)
             #print(pre)
-        if flag["buy_signal"] == 1 and pre != 0:
-            b, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
-        if flag["sell_signal"] == 1 and pre != 3:
-            s, a, times, flag = close_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
+
         if pre == 0:
-            b, times, flag = buy_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
+            times = buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down)
         elif pre == 3:
-            s, times, flag = sell_signal(now_price, flag, account_id, api, b, s, a, lot, ex_pair, times)
+            times = sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down)
         
     else:
         times += 1
