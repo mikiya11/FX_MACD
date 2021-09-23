@@ -176,12 +176,21 @@ def extract_x_y(df: pd.DataFrame):
     return x, y
 
 #買い
-def buy_signal(now_price, flag, account_id, api, lot, ex_pair, times, lim_up, lim_down):
+def buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, unit):
     lot = str(lot)
     profit = now_price + lim_up
     loss = now_price + (lim_down*2)
     profit = str(round(profit, 3))
     loss = str(round(loss, 3))
+    #売りポジション決済
+    if unit < 0:
+        data = {"shortUnits":"ALL"}
+        ticket = positions.PositionClose(accountID=account_id, instrument=ex_pair, data=data)
+        try:
+            api.request(ticket)
+        except V20Error:
+            print(sell, close, error)
+            api.request(ticket)
     data = {
          "order": {
             "instrument": ex_pair,
@@ -203,22 +212,32 @@ def buy_signal(now_price, flag, account_id, api, lot, ex_pair, times, lim_up, li
     try:
         res = api.request(ticket)
     except V20Error:
+        print(buy, error)
         res = api.request(ticket)
     now_price= res['orderFillTransaction']['price']  # 約定レート
+    unit = int(res['orderFillTransaction']['units']) #lot数
     times = 0
-    flag["buy_signal"] = 1
     headers = ["profit", "now_price", "loss", "trade"]
     table = [(profit, now_price, loss, "buy")]
     result=tabulate(table, headers)
     print(result)
-    return times
+    return unit, times
 #売り
-def sell_signal(now_price, flag, account_id, api, lot, ex_pair, times, lim_up, lim_down):
+def sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, unit):
     lot = str(lot)
     profit = now_price + lim_down
     loss = now_price +(lim_up*2)
     profit = str(round(profit, 3))
     loss = str(round(loss, 3))
+    #買いポジション決済
+    if unit > 0:
+        data = {"longUnits":"ALL"}
+        ticket = positions.PositionClose(accountID=account_id, instrument=ex_pair, data=data)
+        try:
+            api.request(ticket)
+        except V20Error:
+            print(buy, close, error)
+            api.request(ticket)
     data = {
          "order": {
              "instrument": ex_pair,
@@ -240,15 +259,16 @@ def sell_signal(now_price, flag, account_id, api, lot, ex_pair, times, lim_up, l
     try:
         res = api.request(ticket)
     except V20Error:
+        print(sell, error)
         res = api.request(ticket)
     now_price= res['orderFillTransaction']['price']  # 約定レート
+    unit = int(res['orderFillTransaction']['units']) #lot数
     times = 0
-    flag["sell_signal"] = 1
     headers = ["profit", "now_price", "loss", "trade"]
     table = [(profit, now_price, loss, "sell")]
     result=tabulate(table, headers)
     print(result)
-    return times
+    return unit, times
 
 
 class Model(nn.Module):
@@ -299,7 +319,7 @@ def make_data(x, y): #ラベルと特徴量を結合してリストにする
     return data
 
 #メイン
-
+unit = 0
 model = Model(int(bar), 5).to(device)
 model.load_state_dict(torch.load(loa_path))
 model.eval()
@@ -343,9 +363,9 @@ while True:
             #print(pre)
 
         if pre == 0:
-            times = buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down)
+            unit, times = buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, unit)
         elif pre == 3:
-            times = sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down)
+            unit, times = sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, unit)
         
     else:
         times += 1
