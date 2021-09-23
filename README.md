@@ -7,7 +7,7 @@ pytorch 1.7.1
 oandapyv20 0.6.3
 
 **How to use**   
-1.install pytorch,pandas,numpy,oandapyv20  
+1.install pytorch,pandas,numpy,oandapyv20,tabulate  
 2.Input id and token for data/account.txt  
 You can change exchange pair,lot,chart bar,learning date...etc by data/account.txt   *1  
 3.Run make_model.py  
