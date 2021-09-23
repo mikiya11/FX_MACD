@@ -86,6 +86,8 @@ def make_df(df, df_all, bar):
     df_down = df_down.sort_values('diff', ascending=False)
     len_up = math.floor(len(df_up)/2)
     len_down = math.floor(len(df_down)/2)
+    lim_up = str(df_up.iloc[len_up, 0])
+    lim_down = str(df_down.iloc[len_down, 0])
     df_1 = df_up[len_up:]
     df_2 = df_up[:len_up-1]
     df_3 = df_down[len_down+1:]
@@ -114,7 +116,7 @@ def make_df(df, df_all, bar):
     df = pd.concat([df_label, df], axis=1)
     sh = df.shape
     df.columns = range(sh[1])
-    return df
+    return df, lim_up, lim_down
 #データの準備
 df_all = pd.read_csv(filename)
 df_clo = df_all['close']
@@ -123,7 +125,12 @@ MACD, signal = macd_data(df_clo)
 MACD_signal = macd_signal(MACD, signal)
 df_mac = pd.Series(MACD_signal)
 #print(df_mac)
-df = make_df(df_mac, df_all, bar)
+df, lim_up, lim_down = make_df(df_mac, df_all, bar)
+#モデルの利益確定範囲を指定
+config['oanda']['limit_up'] = lim_up
+config['oanda']['limit_down'] = lim_down
+with open('./data/account.txt', 'w') as file:
+    config.write(file)
 #print(df)
 
 #ラベル別分類する．
@@ -134,20 +141,7 @@ df_sell2 = df.loc[df.iloc[:, 0] == 4]
 df_no = df.loc[df.iloc[:, 0] == 5]
 
 
-#データ数の調整
-num_buy = df_buy.shape[0]       #データ数1236512個
-num_buy2 = df_buy2.shape[0]     #データ数1687827個
-num_sell = df_sell.shape[0]     #データ数1264026個
-num_sell2 = df_sell2.shape[0]   #データ数1730528個
-num_no = df_no.shape[0]         #データ数135852個
 
-"""
-print(num_buy)
-print(num_buy2)
-print(num_sell)
-print(num_sell2)
-print(num_no)
-"""
 
 #データの分割
 def extract_train_vali_test(df, train_ratio=0.8, vali_ratio=0.1):
