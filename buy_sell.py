@@ -34,6 +34,7 @@ asi = config['oanda']['asi']                #取得した時間足
 bar = config['oanda']['bar']                #予測先
 lim_up = float(config['oanda']['limit_up'])        #利確位置
 lim_down = float(config['oanda']['limit_down'])      #利確位置
+lerndata = int(config['oanda']['lern'])             #学習するデータ数
 
 #modelパス
 loa_path = 'FXmodel'+'_'+ex_pair+'_'+asi+'_'+bar+'.pth'
@@ -48,7 +49,7 @@ def get_mdata(ex_pair, api, asi, bar):
     except V20Error:
         now = api.request(psnow) #現在の価格を取得
     end = now['time']
-    params = {"count":35 + bar,"granularity":asi,"to":end}
+    params = {"count":35 + lerndata,"granularity":asi,"to":end}
     r = instruments.InstrumentsCandles(instrument=ex_pair, params=params,)
     try:
         apires = api.request(r)
@@ -56,13 +57,10 @@ def get_mdata(ex_pair, api, asi, bar):
         apires = api.request(r)
     res = r.response['candles']
     end = res[0]['time']
-    n = 0
-    res1 = res
-
     data = []
     price = []
     #形を成形
-    for raw in res1:
+    for raw in res:
         data.append([raw['time'], raw['mid']['o'], raw['mid']['h'], raw['mid']['l'], raw['mid']['c']])
     #DataFrameに変換
     df = pd.DataFrame(data)
@@ -155,7 +153,7 @@ def make_df(df, df_all, bar):
     df_label[idx_no] = 5
 
     #MACDデータ作成
-    for i in range(bar-1):
+    for i in range(lerndata):
         if i == 0:
             df_shift = df
         df_shift = df_shift.shift(-1)
@@ -176,21 +174,21 @@ def extract_x_y(df: pd.DataFrame):
     return x, y
 
 #買い
-def buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, unit):
+def buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, unit, flag):
     lot = str(lot)
     profit = now_price + lim_up
     loss = now_price + (lim_down*2)
     profit = str(round(profit, 3))
     loss = str(round(loss, 3))
     #売りポジション決済
-    if unit < 0:
+    if flag["sell_signal"] == 1:
         data = {"shortUnits":"ALL"}
         ticket = positions.PositionClose(accountID=account_id, instrument=ex_pair, data=data)
         try:
             api.request(ticket)
+            flag["sell_signal"] = 0
         except V20Error:
-            print(sell, close, error)
-            api.request(ticket)
+            pass
     data = {
          "order": {
             "instrument": ex_pair,
@@ -211,33 +209,33 @@ def buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down
     
     try:
         res = api.request(ticket)
+        unit = int(res['orderCreateTransaction']['units']) #lot数
+        times = 0
+        headers = ["profit", "now_price", "loss", "trade"]
+        table = [(profit, now_price, loss, "buy")]
+        result=tabulate(table, headers)
+        print(result)
+        flag["buy_signal"] = 1
     except V20Error:
-        print(buy, error)
-        res = api.request(ticket)
-    now_price= res['orderFillTransaction']['price']  # 約定レート
-    unit = int(res['orderFillTransaction']['units']) #lot数
-    times = 0
-    headers = ["profit", "now_price", "loss", "trade"]
-    table = [(profit, now_price, loss, "buy")]
-    result=tabulate(table, headers)
-    print(result)
-    return unit, times
+        pass
+    
+    return flag, times
 #売り
-def sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, unit):
+def sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, unit, flag):
     lot = str(lot)
     profit = now_price + lim_down
     loss = now_price +(lim_up*2)
     profit = str(round(profit, 3))
     loss = str(round(loss, 3))
     #買いポジション決済
-    if unit > 0:
+    if flag["buy_signal"] == 1:
         data = {"longUnits":"ALL"}
         ticket = positions.PositionClose(accountID=account_id, instrument=ex_pair, data=data)
         try:
             api.request(ticket)
+            flag["buy_signal"] = 0
         except V20Error:
-            print(buy, close, error)
-            api.request(ticket)
+            pass
     data = {
          "order": {
              "instrument": ex_pair,
@@ -258,17 +256,17 @@ def sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_dow
     
     try:
         res = api.request(ticket)
+        unit = int(res['orderCreateTransaction']['units']) #lot数
+        times = 0
+        headers = ["profit", "now_price", "loss", "trade"]
+        table = [(profit, now_price, loss, "sell")]
+        result=tabulate(table, headers)
+        print(result)
+        flag["sell_signal"] = 1
     except V20Error:
-        print(sell, error)
-        res = api.request(ticket)
-    now_price= res['orderFillTransaction']['price']  # 約定レート
-    unit = int(res['orderFillTransaction']['units']) #lot数
-    times = 0
-    headers = ["profit", "now_price", "loss", "trade"]
-    table = [(profit, now_price, loss, "sell")]
-    result=tabulate(table, headers)
-    print(result)
-    return unit, times
+        pass
+    
+    return flag, times
 
 
 class Model(nn.Module):
@@ -320,7 +318,10 @@ def make_data(x, y): #ラベルと特徴量を結合してリストにする
 
 #メイン
 unit = 0
-model = Model(int(bar), 5).to(device)
+flag = {"buy_signal" : 0,
+        "sell_signal" : 0
+	}
+model = Model(int(lerndata)+1, 5).to(device)
 model.load_state_dict(torch.load(loa_path))
 model.eval()
 if 'S' in asi :
@@ -363,9 +364,9 @@ while True:
             #print(pre)
 
         if pre == 0:
-            unit, times = buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, unit)
+            flag, times = buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, unit, flag)
         elif pre == 3:
-            unit, times = sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, unit)
+            flag, times = sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, unit, flag)
         
     else:
         times += 1
