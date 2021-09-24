@@ -151,7 +151,6 @@ def make_df(df, df_all, bar):
     df_label[idx_3] = 3
     df_label[idx_4] = 4
     df_label[idx_no] = 5
-
     #MACDデータ作成
     for i in range(lerndata-1):
         if i == 0:
@@ -349,15 +348,16 @@ while True:
         MACD, signal = macd_data(df_clo)
         MACD_signal = macd_signal(MACD, signal)
         df_mac = pd.Series(MACD_signal)
-        df = make_df(df_mac, df_all, bar)  
+        df = make_df(df_mac, df_all, bar)
         x, y = extract_x_y(df)
         data = make_data(x.to_numpy(), y.to_numpy())
         #データローダの設定
-        vali_dataloader = DataLoader(data, batch_size=1, shuffle=False)
+        vali_dataloader = DataLoader(data, batch_size=len(data), shuffle=False)
         for (x, t) in vali_dataloader:
             x, t = x.to(device), t.to(device)
             model.eval() #ネットワークを推論モードに
-            pre = model(x) 
+            pre = model(x)
+            pre = pre[0]
             #print(pre)
             pre = torch.argmax(pre)
             #print(pre)
