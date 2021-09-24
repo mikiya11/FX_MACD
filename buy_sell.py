@@ -153,16 +153,15 @@ def make_df(df, df_all, bar):
     df_label[idx_no] = 5
 
     #MACDデータ作成
-    for i in range(lerndata):
+    for i in range(lerndata-1):
         if i == 0:
             df_shift = df
         df_shift = df_shift.shift(-1)
         df = pd.concat([df, df_shift], axis=1)
-        
     #結合
     sh = df.shape
     df.columns = range(sh[1])
-    df = df.dropna(how='any') 
+    df = df.dropna(how='any')
     df = pd.concat([df_label, df], axis=1)
     sh = df.shape
     df.columns = range(sh[1])
@@ -321,7 +320,7 @@ unit = 0
 flag = {"buy_signal" : 0,
         "sell_signal" : 0
 	}
-model = Model(int(lerndata)+1, 5).to(device)
+model = Model(int(lerndata), 5).to(device)
 model.load_state_dict(torch.load(loa_path))
 model.eval()
 if 'S' in asi :
@@ -338,14 +337,14 @@ old_price = 0
 while True:
     df_all = get_mdata(ex_pair, api, asi, bar)
     #print(df_all)
-    now_price = df_all.iloc[54, 4]
+    now_price = df_all.iloc[len(df_all)-1, 4]
     #print(now_price)
     if old_price == 0:
         old_price = now_price
     if times == (bar * mini):
         df_all = get_mdata(ex_pair, api, asi, bar)
         #print(df_all)
-        old_price = df_all.iloc[54, 4]
+        old_price = df_all.iloc[len(df_all)-1, 4]
         df_clo = df_all['close']
         MACD, signal = macd_data(df_clo)
         MACD_signal = macd_signal(MACD, signal)
@@ -362,11 +361,12 @@ while True:
             #print(pre)
             pre = torch.argmax(pre)
             #print(pre)
-
+        
         if pre == 0:
             flag, times = buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, unit, flag)
         elif pre == 3:
             flag, times = sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, unit, flag)
+        
         
     else:
         times += 1
