@@ -104,7 +104,7 @@ def make_df(df, df_all, bar):
     df_label[idx_no] = 5
 
     #MACDデータ作成
-    for i in range(lerndata):
+    for i in range(lerndata-1):
         if i == 0:
             df_shift = df
         df_shift = df_shift.shift(-1)
