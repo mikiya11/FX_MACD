@@ -18,6 +18,7 @@ ex_pair = config['oanda']['pair']
 asi = config['oanda']['asi']
 epochs = int(config['oanda']['epoch'])
 bar = config['oanda']['bar']
+lerndata = int(config['oanda']['lern'])
 filename = './data/'+ex_pair+'_'+asi+'.csv'
 try:
     os.remove('./data/train_log'+'_'+ex_pair+'_'+asi+'_'+bar+'.csv')
@@ -103,7 +104,7 @@ def make_df(df, df_all, bar):
     df_label[idx_no] = 5
 
     #MACDデータ作成
-    for i in range(bar-1):
+    for i in range(lerndata):
         if i == 0:
             df_shift = df
         df_shift = df_shift.shift(-1)
