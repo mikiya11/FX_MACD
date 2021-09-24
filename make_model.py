@@ -12,8 +12,9 @@ import torch.nn as nn
 from torchvision import models
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import copy
+datafile = './data/account.txt'
 config = configparser.ConfigParser()
-config.read('./data/account.txt')
+config.read(datafile)
 ex_pair = config['oanda']['pair']           
 asi = config['oanda']['asi']
 epochs = int(config['oanda']['epoch'])
@@ -130,7 +131,7 @@ df, lim_up, lim_down = make_df(df_mac, df_all, bar)
 #モデルの利益確定範囲を指定
 config['oanda']['limit_up'] = lim_up
 config['oanda']['limit_down'] = lim_down
-with open('./data/account.txt', 'w') as file:
+with open(datafile, 'w') as file:
     config.write(file)
 #print(df)
 
