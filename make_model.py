@@ -66,11 +66,11 @@ def make_df(df, df_all, bar, lerndata):
     bar = int(bar)
     #label作成
     df_al = df_all[['close']]
-    df_al2 = df_al.shift(-bar+lerndata)
+    df_al2 = df_al.shift(-bar)
     sh = df_al2.shape
     df_al2.columns = range(sh[1]) 
     df_al3 = (df_al.iloc[:, 0] - df_al2.iloc[:, 0])
-    df_al3 = df_al3.shift(-35)
+    df_al3 = df_al3.shift(-35+lerndata)
     df_al3 = df_al3.dropna(how='any')
     df_label = df_al3
     #上、下、そのままに三分割
@@ -127,7 +127,7 @@ MACD, signal = macd_data(df_clo)
 MACD_signal = macd_signal(MACD, signal)
 df_mac = pd.Series(MACD_signal)
 #print(df_mac)
-df, lim_up, lim_down = make_df(df_mac, df_all, bar)
+df, lim_up, lim_down = make_df(df_mac, df_all, bar, lerndata)
 #モデルの利益確定範囲を指定
 config['oanda']['limit_up'] = lim_up
 config['oanda']['limit_down'] = lim_down
