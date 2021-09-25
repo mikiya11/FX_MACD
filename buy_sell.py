@@ -38,7 +38,9 @@ lerndata = int(config['oanda']['lern'])             #学習するデータ数
 
 #modelパス
 loa_path = 'FXmodel'+'_'+ex_pair+'_'+asi+'_'+bar+'.pth'
+
 bar = int(bar)
+
 api = oandapyV20.API(access_token=api_key, environment="live")
 
 def get_mdata(ex_pair, api, asi, bar):
@@ -47,6 +49,7 @@ def get_mdata(ex_pair, api, asi, bar):
     try:
         now = api.request(psnow) #現在の価格を取得
     except V20Error:
+        api = oandapyV20.API(access_token=api_key, environment="live")
         now = api.request(psnow) #現在の価格を取得
     end = now['time']
     params = {"count":35 + lerndata,"granularity":asi,"to":end}
@@ -54,6 +57,7 @@ def get_mdata(ex_pair, api, asi, bar):
     try:
         apires = api.request(r)
     except V20Error:
+        api = oandapyV20.API(access_token=api_key, environment="live")
         apires = api.request(r)
     res = r.response['candles']
     end = res[0]['time']
@@ -112,7 +116,7 @@ def macd_signal(MACD, signal):
         MACD_signal.append(MACD[i] - signal[i])
     return MACD_signal
 #dfを成形
-def make_df(df, df_all, bar):
+def make_df(df, df_all, bar,lerndata):
     bar = int(bar)
     #label作成
     df_al = df_all[['close']]
@@ -120,7 +124,7 @@ def make_df(df, df_all, bar):
     sh = df_al2.shape
     df_al2.columns = range(sh[1]) 
     df_al3 = (df_al.iloc[:, 0] - df_al2.iloc[:, 0])
-    df_al3 = df_al3.shift(-35)
+    df_al3 = df_al3.shift(-35+lerndata)
     df_al3 = df_al3.dropna(how='any')
     df_label = df_al3
     #上、下、そのままに三分割
@@ -186,7 +190,8 @@ def buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down
             api.request(ticket)
             flag["sell_signal"] = 0
         except V20Error:
-            pass
+            api = oandapyV20.API(access_token=api_key, environment="live")
+            api.request(ticket)
     data = {
          "order": {
             "instrument": ex_pair,
@@ -215,7 +220,8 @@ def buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down
         print(result)
         flag["buy_signal"] = 1
     except V20Error:
-        pass
+        api = oandapyV20.API(access_token=api_key, environment="live")
+        api.request(ticket)
     
     return flag, times
 #売り
@@ -233,7 +239,8 @@ def sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_dow
             api.request(ticket)
             flag["buy_signal"] = 0
         except V20Error:
-            pass
+            api = oandapyV20.API(access_token=api_key, environment="live")
+            api.request(ticket)
     data = {
          "order": {
              "instrument": ex_pair,
@@ -262,7 +269,8 @@ def sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_dow
         print(result)
         flag["sell_signal"] = 1
     except V20Error:
-        pass
+        api = oandapyV20.API(access_token=api_key, environment="live")
+        api.request(ticket)
     
     return flag, times
 
@@ -348,7 +356,7 @@ while True:
         MACD, signal = macd_data(df_clo)
         MACD_signal = macd_signal(MACD, signal)
         df_mac = pd.Series(MACD_signal)
-        df = make_df(df_mac, df_all, bar)
+        df = make_df(df_mac, df_all, bar, lerndata)
         x, y = extract_x_y(df)
         data = make_data(x.to_numpy(), y.to_numpy())
         #データローダの設定
