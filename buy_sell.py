@@ -116,7 +116,7 @@ def macd_signal(MACD, signal):
         MACD_signal.append(MACD[i] - signal[i])
     return MACD_signal
 #dfを成形
-def make_df(df, df_all, bar,lerndata):
+def make_df(df, df_all, bar, lerndata):
     bar = int(bar)
     #label作成
     df_al = df_all[['close']]
@@ -125,7 +125,9 @@ def make_df(df, df_all, bar,lerndata):
     df_al2.columns = range(sh[1]) 
     df_al3 = (df_al.iloc[:, 0] - df_al2.iloc[:, 0])
     df_al3 = df_al3.shift(-35+lerndata)
+    #print(df_al3)
     df_al3 = df_al3.dropna(how='any')
+    df_al3 = df_al3.reset_index(drop=True)
     df_label = df_al3
     #上、下、そのままに三分割
     idx_up = df_al3.index[df_al3 > 0]
@@ -133,6 +135,7 @@ def make_df(df, df_all, bar,lerndata):
     idx_no = df_al3.index[df_al3 == 0]
     df_al3 = pd.DataFrame(df_al3, columns = ['diff'])
     df_al3 = df_al3.assign(label=0)
+    idx = df_al3.reset_index()
     df_al3.iloc[idx_up, 1] = 1
     df_al3.iloc[idx_down, 1] = 2
     df_up = df_al3[df_al3.iloc[:, 1] == 1]
@@ -142,6 +145,8 @@ def make_df(df, df_all, bar,lerndata):
     df_down = df_down.sort_values('diff', ascending=False)
     len_up = math.floor(len(df_up)/2)
     len_down = math.floor(len(df_down)/2)
+    lim_up = str(df_up.iloc[len_up, 0])
+    lim_down = str(df_down.iloc[len_down, 0])
     df_1 = df_up[len_up:]
     df_2 = df_up[:len_up-1]
     df_3 = df_down[len_down+1:]
@@ -161,13 +166,14 @@ def make_df(df, df_all, bar,lerndata):
             df_shift = df
         df_shift = df_shift.shift(-1)
         df = pd.concat([df, df_shift], axis=1)
+        
     #結合
     sh = df.shape
     df.columns = range(sh[1])
-    df = df.dropna(how='any')
     df = pd.concat([df_label, df], axis=1)
     sh = df.shape
     df.columns = range(sh[1])
+    df = df.dropna(how='any')
     return df
 #dfから特徴量とラベルのみ抽出
 def extract_x_y(df: pd.DataFrame):
