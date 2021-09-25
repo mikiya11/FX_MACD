@@ -71,7 +71,9 @@ def make_df(df, df_all, bar, lerndata):
     df_al2.columns = range(sh[1]) 
     df_al3 = (df_al.iloc[:, 0] - df_al2.iloc[:, 0])
     df_al3 = df_al3.shift(-35+lerndata)
+    #print(df_al3)
     df_al3 = df_al3.dropna(how='any')
+    df_al3 = df_al3.reset_index(drop=True)
     df_label = df_al3
     #上、下、そのままに三分割
     idx_up = df_al3.index[df_al3 > 0]
@@ -79,6 +81,7 @@ def make_df(df, df_all, bar, lerndata):
     idx_no = df_al3.index[df_al3 == 0]
     df_al3 = pd.DataFrame(df_al3, columns = ['diff'])
     df_al3 = df_al3.assign(label=0)
+    idx = df_al3.reset_index()
     df_al3.iloc[idx_up, 1] = 1
     df_al3.iloc[idx_down, 1] = 2
     df_up = df_al3[df_al3.iloc[:, 1] == 1]
@@ -103,7 +106,6 @@ def make_df(df, df_all, bar, lerndata):
     df_label[idx_3] = 3
     df_label[idx_4] = 4
     df_label[idx_no] = 5
-
     #MACDデータ作成
     for i in range(lerndata-1):
         if i == 0:
@@ -114,10 +116,10 @@ def make_df(df, df_all, bar, lerndata):
     #結合
     sh = df.shape
     df.columns = range(sh[1])
-    df = df.dropna(how='any') 
     df = pd.concat([df_label, df], axis=1)
     sh = df.shape
     df.columns = range(sh[1])
+    df = df.dropna(how='any')
     return df, lim_up, lim_down
 #データの準備
 df_all = pd.read_csv(filename)
