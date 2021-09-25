@@ -62,11 +62,11 @@ def macd_signal(MACD, signal):
     for i in range(len(MACD)):
         MACD_signal.append(MACD[i] - signal[i])
     return MACD_signal
-def make_df(df, df_all, bar):
+def make_df(df, df_all, bar, lerndata):
     bar = int(bar)
     #label作成
     df_al = df_all[['close']]
-    df_al2 = df_al.shift(-bar)
+    df_al2 = df_al.shift(-bar+lerndata)
     sh = df_al2.shape
     df_al2.columns = range(sh[1]) 
     df_al3 = (df_al.iloc[:, 0] - df_al2.iloc[:, 0])
