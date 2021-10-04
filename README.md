@@ -20,7 +20,7 @@ If you want to trade other than USD_JPY and GBP_JPY, change data/account.txt and
 
 *1  
 |account_id|api_key|pair|lot|asi|date|epoch|bar|lern|data
-|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:--|
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|:--|
 |account id|API token|exchange pair|lot|chart bar time|start date get_data.py|number times training|prediction bar|feature value|data value
 
   
