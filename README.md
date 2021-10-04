@@ -19,9 +19,9 @@ You can change exchange pair,lot,chart bar,learning date...etc by data/account.t
 If you want to trade other than USD_JPY and GBP_JPY, change data/account.txt and run getdata.py  
 
 *1  
-|account_id|api_key|pair|lot|asi|date|epoch|bar|limit_up|limit_down|lern
+|account_id|api_key|pair|lot|asi|date|epoch|bar|lern|data
 |:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:--|
-|account id|API token|exchange pair|lot|chart bar time|start date|number times training|prediction bar|limit when buy|limit when sell|feature value
+|account id|API token|exchange pair|lot|chart bar time|start date get_data.py|number times training|prediction bar|feature value|data value
 
   
 *2  
