@@ -248,17 +248,8 @@ class Model(nn.Module):
         self.d5 = nn.Dropout(p=0.4)
         self.a5 = nn.ReLU()
         self.l6 = nn.Linear(hidden_dim, output_dim)
-        """
-
-        self.layers = [self.l1, self.d1, self.a1,
-                        self.l2, self.d2, self.a2,
-                        self.l3, self.d3, self.a3,
-                        self.l4]
-        self.layers = [self.l1, self.a1,
-                        self.l2, self.a2,
-                        self.l4]
-        """
-        self.layers = [self.l1, self.a1, self.l2, self.a2, self.l3, self.a3, self.l4, self.a4, self.l5, self.a5, self.l6]
+        
+        self.layers = [self.l1, self.d1, self.a1, self.l2, self.d2, self.a2, self.l3, self.d3, self.a3, self.l4, self.d4, self.a4, self.l5, self.d5, self.a5, self.l6]
 
     def forward(self, x):
         for layer in self.layers:
