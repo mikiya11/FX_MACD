@@ -73,10 +73,9 @@ def make_df(df, df_all, bar, lerndata):
     df_al = df_all[['close']]
     df_al2 = df_al.shift(-bar)
     sh = df_al2.shape
-    df_al2.columns = range(sh[1]) 
+    df_al2.columns = range(sh[1])
     df_al3 = (df_al.iloc[:, 0] - df_al2.iloc[:, 0])
-    df_al3 = df_al3.shift(-35+lerndata)
-    #print(df_al3)
+    df_al3 = df_al3.shift(35+lerndata)
     df_al3 = df_al3.dropna(how='any')
     df_al3 = df_al3.reset_index(drop=True)
     df_label = df_al3
@@ -250,6 +249,7 @@ class Model(nn.Module):
         self.a5 = nn.ReLU()
         self.l6 = nn.Linear(hidden_dim, output_dim)
         """
+
         self.layers = [self.l1, self.d1, self.a1,
                         self.l2, self.d2, self.a2,
                         self.l3, self.d3, self.a3,
