@@ -19,12 +19,16 @@ ex_pair = config['oanda']['pair']
 asi = config['oanda']['asi']
 epochs = int(config['oanda']['epoch'])
 bar = config['oanda']['bar']
-lerndata = int(config['oanda']['lern'])
+lerndata = config['oanda']['lern']
+data_num = config['oanda']['data']
 filename = './data/'+ex_pair+'_'+asi+'.csv'
 try:
-    os.remove('./data/train_log'+'_'+ex_pair+'_'+asi+'_'+bar+'.csv')
+    os.remove('./data/train_log'+'_'+ex_pair+'_'+asi+'_'+bar+'_'+lerndata+'_'+data_num+'.csv')
 except:
     pass
+limit_path = 'data/limit.txt'
+config_lim = configparser.ConfigParser()
+config_lim.read(limit_path)
 #MACDの値を返す関数を定義する。（引数はロウソク足の終値）
 def macd_data(data):
     #短期と長期の指数平滑移動平均、MACDのリスト、signalのリスト
@@ -64,6 +68,7 @@ def macd_signal(MACD, signal):
     return MACD_signal
 def make_df(df, df_all, bar, lerndata):
     bar = int(bar)
+    lerndata = int(lerndata)
     #label作成
     df_al = df_all[['close']]
     df_al2 = df_al.shift(-bar)
@@ -106,7 +111,7 @@ def make_df(df, df_all, bar, lerndata):
     df_label[idx_3] = 3
     df_label[idx_4] = 4
     df_label[idx_no] = 5
-    #MACDデータ作成
+    #データ作成
     for i in range(lerndata-1):
         if i == 0:
             df_shift = df
@@ -123,6 +128,9 @@ def make_df(df, df_all, bar, lerndata):
     return df, lim_up, lim_down
 #データの準備
 df_all = pd.read_csv(filename)
+data_num = int(data_num)
+df_all = df_all[-data_num:]
+data_num = str(data_num)
 df_clo = df_all['close']
 MACD, signal = macd_data(df_clo)
 #print(MACD, signal)
@@ -131,10 +139,16 @@ df_mac = pd.Series(MACD_signal)
 #print(df_mac)
 df, lim_up, lim_down = make_df(df_mac, df_all, bar, lerndata)
 #モデルの利益確定範囲を指定
-config['oanda']['limit_up'] = lim_up
-config['oanda']['limit_down'] = lim_down
-with open(datafile, 'w') as file:
-    config.write(file)
+try:
+    config_lim[ex_pair+'_'+asi+'_'+bar+'_'+lerndata+'_'+data_num]['limit_up'] = lim_up
+    config_lim[ex_pair+'_'+asi+'_'+bar+'_'+lerndata+'_'+data_num]['limit_down'] = lim_down
+except:
+    sec = ex_pair+'_'+asi+'_'+bar+'_'+lerndata+'_'+data_num
+    config_lim.add_section(sec)
+    config_lim.set(sec, 'limit_up', lim_up)
+    config_lim.set(sec, 'limit_down', lim_down)
+with open(limit_path, 'w') as file:
+    config_lim.write(file)
 #print(df)
 
 #ラベル別分類する．
@@ -212,7 +226,7 @@ data_test = make_data(x_test.to_numpy(), y_test.to_numpy())
 #データローダの設定
 train_dataloader = DataLoader(data_train, batch_size=5, shuffle=True)
 vali_dataloader = DataLoader(data_vali, batch_size=5, shuffle=False)
-
+test_dataloader = DataLoader(data_test, batch_size=5, shuffle=False)
 
 #学習
 class Model(nn.Module):
@@ -220,19 +234,19 @@ class Model(nn.Module):
         #print(input_dim, output_dim)
         super(Model, self).__init__()
         self.l1 = nn.Linear(input_dim, hidden_dim)
-        self.d1 = nn.Dropout(p=0.2)
+        self.d1 = nn.Dropout(p=0.4)
         self.a1 = nn.ReLU()
         self.l2 = nn.Linear(hidden_dim, hidden_dim)
-        self.d2 = nn.Dropout(p=0.2)
+        self.d2 = nn.Dropout(p=0.4)
         self.a2 = nn.ReLU()
         self.l3 = nn.Linear(hidden_dim, hidden_dim)
-        self.d3 = nn.Dropout(p=0.2)
+        self.d3 = nn.Dropout(p=0.4)
         self.a3 = nn.ReLU()
         self.l4 = nn.Linear(hidden_dim, hidden_dim)
-        self.d4 = nn.Dropout(p=0.2)
+        self.d4 = nn.Dropout(p=0.4)
         self.a4 = nn.ReLU()
         self.l5 = nn.Linear(hidden_dim, hidden_dim)
-        self.d5 = nn.Dropout(p=0.2)
+        self.d5 = nn.Dropout(p=0.4)
         self.a5 = nn.ReLU()
         self.l6 = nn.Linear(hidden_dim, output_dim)
         """
@@ -281,7 +295,7 @@ def vali_step(x, t):
 
     return loss, preds
 
-log = dict(epoch=[], train_loss=[], train_acc=[], vali_loss=[], vali_acc=[])
+log = dict(epoch=[], train_loss=[], train_acc=[], vali_loss=[], vali_acc=[], test_loss=[], test_acc=[])
 
 best_loss = 1e+10
 best_model_params = None
@@ -318,17 +332,34 @@ for epoch in range(epochs):
 
     vali_loss /= len(vali_dataloader)
     vali_acc /= len(vali_dataloader)
+#評価
+    test_loss = 0.
+    test_acc = 0.
+
+    for (x, t) in test_dataloader:
+        x, t = x.to(device), t.to(device)
+        loss, preds = vali_step(x, t)
+        #print(loss)
+        #print(preds)
+        test_loss += loss.item()
+        test_acc += \
+            accuracy_score(t.tolist(),preds.argmax(dim=-1).tolist())
+
+    test_loss /= len(test_dataloader)
+    test_acc /= len(test_dataloader)
 #epochごとの結果をlogに記録
     if vali_loss < best_loss:
         print("best loss updated")
         # preserve the best parameters
         best_model_params = copy.deepcopy(model.state_dict())
         best_loss = vali_loss
-        torch.save(best_model_params, 'FXmodel'+'_'+ex_pair+'_'+asi+'_'+bar+'.pth')
+        torch.save(best_model_params, 'FXmodel'+'_'+ex_pair+'_'+asi+'_'+bar+'_'+lerndata+'_'+data_num+'.pth')
     log['epoch'].append(epoch+1)
     log['train_loss'].append(train_loss)
     log['train_acc'].append(train_acc)
     log['vali_loss'].append(vali_loss)
     log['vali_acc'].append(vali_acc)
-    pd.DataFrame(log).to_csv('./data/train_log'+'_'+ex_pair+'_'+asi+'_'+bar+'.csv')
+    log['test_loss'].append(test_loss)
+    log['test_acc'].append(test_acc)
+    pd.DataFrame(log).to_csv('./data/train_log'+'_'+ex_pair+'_'+asi+'_'+bar+'_'+lerndata+'_'+data_num+'.csv')
 
