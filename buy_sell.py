@@ -9,6 +9,7 @@ import oandapyV20.endpoints.pricing as pricing
 import oandapyV20.endpoints.orders as orders
 import oandapyV20.endpoints.positions as positions
 import oandapyV20.endpoints.trades as trades
+from oandapyV20.endpoints.trades import TradeDetails, TradeClose
 from oandapyV20.exceptions import V20Error
 from datetime import datetime, timedelta
 from torch.utils.data import DataLoader
@@ -32,15 +33,19 @@ ex_pair = config['oanda']['pair']           #対象通貨
 lot = config['oanda']['lot']                #lot数 
 asi = config['oanda']['asi']                #取得した時間足
 bar = config['oanda']['bar']                #予測先
-lim_up = float(config['oanda']['limit_up'])        #利確位置
-lim_down = float(config['oanda']['limit_down'])      #利確位置
-lerndata = int(config['oanda']['lern'])             #学習するデータ数
+lerndata = config['oanda']['lern']          #学習するデータ数
+data_num = config['oanda']['data']
 
+limit_path = 'data/limit.txt'#limit path
+config_lim = configparser.ConfigParser()
+config_lim.read(limit_path)
+lim_up = float(config_lim[ex_pair+'_'+asi+'_'+bar+'_'+lerndata+'_'+data_num]['limit_up'])        #利確位置
+lim_down = float(config_lim[ex_pair+'_'+asi+'_'+bar+'_'+lerndata+'_'+data_num]['limit_down'])      #利確位置
 #modelパス
-loa_path = 'FXmodel'+'_'+ex_pair+'_'+asi+'_'+bar+'.pth'
+loa_path = 'FXmodel'+'_'+ex_pair+'_'+asi+'_'+bar+'_'+lerndata+'_'+data_num+'.pth'
 
 bar = int(bar)
-
+lerndata = int(lerndata)
 api = oandapyV20.API(access_token=api_key, environment="live")
 
 def get_mdata(ex_pair, api, asi, bar):
@@ -182,22 +187,24 @@ def extract_x_y(df: pd.DataFrame):
     return x, y
 
 #買い
-def buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, unit, flag):
+def buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, trade_id, flag):
     lot = str(lot)
     profit = now_price + lim_up
-    loss = now_price + (lim_down*2)
+    loss = now_price + (lim_down*3)
     profit = str(round(profit, 3))
     loss = str(round(loss, 3))
     #売りポジション決済
     if flag["sell_signal"] == 1:
-        data = {"shortUnits":"ALL"}
-        ticket = positions.PositionClose(accountID=account_id, instrument=ex_pair, data=data)
-        try:
-            api.request(ticket)
-            flag["sell_signal"] = 0
-        except V20Error:
-            api = oandapyV20.API(access_token=api_key, environment="live")
-            api.request(ticket)
+        #print(trade_id)
+        for i in range(len(trade_id)-1):
+            data_clo = None
+            ticket = TradeClose(accountID=account_id, tradeID=trade_id[i], data=data_clo)
+            try:
+                api.request(ticket)
+            except V20Error:
+                pass
+        trade_id = []
+        flag["sell_signal"] = 0
     data = {
          "order": {
             "instrument": ex_pair,
@@ -218,7 +225,7 @@ def buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down
     
     try:
         res = api.request(ticket)
-        unit = int(res['orderCreateTransaction']['units']) #lot数
+        trade_id.append(res['orderCreateTransaction']['id']) #tradeID
         times = 0
         headers = ["profit", "now_price", "loss", "trade"]
         table = [(profit, now_price, loss, "buy")]
@@ -227,26 +234,35 @@ def buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down
         flag["buy_signal"] = 1
     except V20Error:
         api = oandapyV20.API(access_token=api_key, environment="live")
-        api.request(ticket)
+        res = api.request(ticket)
+        trade_id.append(res['orderCreateTransaction']['id']) #tradeID
+        times = 0
+        headers = ["profit", "now_price", "loss", "trade"]
+        table = [(profit, now_price, loss, "buy")]
+        result=tabulate(table, headers)
+        print(result)
+        flag["buy_signal"] = 1
     
-    return flag, times
+    return trade_id, flag, times
 #売り
-def sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, unit, flag):
+def sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, trade_id, flag):
     lot = str(lot)
     profit = now_price + lim_down
-    loss = now_price +(lim_up*2)
+    loss = now_price +(lim_up*3)
     profit = str(round(profit, 3))
     loss = str(round(loss, 3))
     #買いポジション決済
     if flag["buy_signal"] == 1:
-        data = {"longUnits":"ALL"}
-        ticket = positions.PositionClose(accountID=account_id, instrument=ex_pair, data=data)
-        try:
-            api.request(ticket)
-            flag["buy_signal"] = 0
-        except V20Error:
-            api = oandapyV20.API(access_token=api_key, environment="live")
-            api.request(ticket)
+        #print(trade_id)
+        for i in range(len(trade_id)-1):
+            data_clo = None
+            ticket = TradeClose(accountID=account_id, tradeID=trade_id[i], data=data_clo)
+            try:
+                api.request(ticket)
+            except V20Error:
+                pass
+        trade_id = []
+        flag["buy_signal"] = 0
     data = {
          "order": {
              "instrument": ex_pair,
@@ -267,7 +283,7 @@ def sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_dow
     
     try:
         res = api.request(ticket)
-        unit = int(res['orderCreateTransaction']['units']) #lot数
+        trade_id.append(res['orderCreateTransaction']['id']) #tradeID
         times = 0
         headers = ["profit", "now_price", "loss", "trade"]
         table = [(profit, now_price, loss, "sell")]
@@ -276,9 +292,15 @@ def sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_dow
         flag["sell_signal"] = 1
     except V20Error:
         api = oandapyV20.API(access_token=api_key, environment="live")
-        api.request(ticket)
-    
-    return flag, times
+        res = api.request(ticket)
+        trade_id.append(res['orderCreateTransaction']['id']) #tradeID
+        times = 0
+        headers = ["profit", "now_price", "loss", "trade"]
+        table = [(profit, now_price, loss, "sell")]
+        result=tabulate(table, headers)
+        print(result)
+        flag["sell_signal"] = 1
+    return trade_id, flag, times
 
 
 class Model(nn.Module):
@@ -286,19 +308,19 @@ class Model(nn.Module):
         #print(input_dim, output_dim)
         super(Model, self).__init__()
         self.l1 = nn.Linear(input_dim, hidden_dim)
-        self.d1 = nn.Dropout(p=0.2)
+        self.d1 = nn.Dropout(p=0.4)
         self.a1 = nn.ReLU()
         self.l2 = nn.Linear(hidden_dim, hidden_dim)
-        self.d2 = nn.Dropout(p=0.2)
+        self.d2 = nn.Dropout(p=0.4)
         self.a2 = nn.ReLU()
         self.l3 = nn.Linear(hidden_dim, hidden_dim)
-        self.d3 = nn.Dropout(p=0.2)
+        self.d3 = nn.Dropout(p=0.4)
         self.a3 = nn.ReLU()
         self.l4 = nn.Linear(hidden_dim, hidden_dim)
-        self.d4 = nn.Dropout(p=0.2)
+        self.d4 = nn.Dropout(p=0.4)
         self.a4 = nn.ReLU()
         self.l5 = nn.Linear(hidden_dim, hidden_dim)
-        self.d5 = nn.Dropout(p=0.2)
+        self.d5 = nn.Dropout(p=0.4)
         self.a5 = nn.ReLU()
         self.l6 = nn.Linear(hidden_dim, output_dim)
         """
@@ -329,7 +351,7 @@ def make_data(x, y): #ラベルと特徴量を結合してリストにする
     return data
 
 #メイン
-unit = 0
+trade_id = []
 flag = {"buy_signal" : 0,
         "sell_signal" : 0
 	}
@@ -371,15 +393,14 @@ while True:
             x, t = x.to(device), t.to(device)
             model.eval() #ネットワークを推論モードに
             pre = model(x)
-            pre = pre[0]
             #print(pre)
             pre = torch.argmax(pre)
             #print(pre)
         
         if pre == 0:
-            flag, times = buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, unit, flag)
+            trade_id, flag, times = buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, trade_id, flag)
         elif pre == 3:
-            flag, times = sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, unit, flag)
+            trade_id, flag, times = sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, trade_id, flag)
         
         
     else:
