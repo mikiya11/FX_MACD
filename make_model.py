@@ -123,7 +123,7 @@ def make_df(df, df_all, bar, lerndata):
     sh = df.shape
     df.columns = range(sh[1])
     df = df.dropna(how='any')
-    print(df)
+    #print(df)
     return df, lim_up, lim_down
 #データの準備
 df_all = pd.read_csv(filename)
