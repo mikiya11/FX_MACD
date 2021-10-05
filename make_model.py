@@ -229,23 +229,23 @@ test_dataloader = DataLoader(data_test, batch_size=5, shuffle=False)
 
 #学習
 class Model(nn.Module):
-    def __init__(self, input_dim, output_dim, hidden_dim=500):
+    def __init__(self, input_dim, output_dim, hidden_dim=600):
         #print(input_dim, output_dim)
         super(Model, self).__init__()
         self.l1 = nn.Linear(input_dim, hidden_dim)
-        self.d1 = nn.Dropout(p=0.4)
+        self.d1 = nn.Dropout(p=0.1)
         self.a1 = nn.ReLU()
         self.l2 = nn.Linear(hidden_dim, hidden_dim)
-        self.d2 = nn.Dropout(p=0.4)
+        self.d2 = nn.Dropout(p=0.1)
         self.a2 = nn.ReLU()
         self.l3 = nn.Linear(hidden_dim, hidden_dim)
-        self.d3 = nn.Dropout(p=0.4)
+        self.d3 = nn.Dropout(p=0.1)
         self.a3 = nn.ReLU()
         self.l4 = nn.Linear(hidden_dim, hidden_dim)
-        self.d4 = nn.Dropout(p=0.4)
+        self.d4 = nn.Dropout(p=0.1)
         self.a4 = nn.ReLU()
         self.l5 = nn.Linear(hidden_dim, hidden_dim)
-        self.d5 = nn.Dropout(p=0.4)
+        self.d5 = nn.Dropout(p=0.1)
         self.a5 = nn.ReLU()
         self.l6 = nn.Linear(hidden_dim, output_dim)
         
@@ -288,7 +288,7 @@ def vali_step(x, t):
 
 log = dict(epoch=[], train_loss=[], train_acc=[], vali_loss=[], vali_acc=[], test_loss=[], test_acc=[])
 
-best_loss = 1e+10
+best_acc = 0
 best_model_params = None
 
 for epoch in range(epochs):
@@ -339,11 +339,11 @@ for epoch in range(epochs):
     test_loss /= len(test_dataloader)
     test_acc /= len(test_dataloader)
 #epochごとの結果をlogに記録
-    if vali_loss < best_loss:
-        print("best loss updated")
+    if vali_acc > best_acc:
+        print("best acc updated")
         # preserve the best parameters
         best_model_params = copy.deepcopy(model.state_dict())
-        best_loss = vali_loss
+        best_acc = vali_acc
         torch.save(best_model_params, 'FXmodel'+'_'+ex_pair+'_'+asi+'_'+bar+'_'+lerndata+'_'+data_num+'.pth')
     log['epoch'].append(epoch+1)
     log['train_loss'].append(train_loss)
