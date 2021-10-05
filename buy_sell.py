@@ -80,7 +80,7 @@ def get_mdata(ex_pair, api, asi, bar):
         i = pd.Timestamp(i).tz_convert('Asia/Tokyo')
 
     df.iloc[:, 0] = df.iloc[:, 0].astype('datetime64[ns]')
-    df.iloc[:, 1:] = df.iloc[:, 1:].astype('float')   
+    df.iloc[:, 1:] = df.iloc[:, 1:].astype('float')
     return df
 
 #MACDの値を返す関数を定義する。（引数はロウソク足の終値）
@@ -123,49 +123,8 @@ def macd_signal(MACD, signal):
 #dfを成形
 def make_df(df, df_all, bar, lerndata):
     bar = int(bar)
-    #label作成
-    df_al = df_all[['close']]
-    df_al2 = df_al.shift(-bar)
-    sh = df_al2.shape
-    df_al2.columns = range(sh[1]) 
-    df_al3 = (df_al.iloc[:, 0] - df_al2.iloc[:, 0])
-    df_al3 = df_al3.shift(-35+lerndata)
-    #print(df_al3)
-    df_al3 = df_al3.dropna(how='any')
-    df_al3 = df_al3.reset_index(drop=True)
-    df_label = df_al3
-    #上、下、そのままに三分割
-    idx_up = df_al3.index[df_al3 > 0]
-    idx_down = df_al3.index[df_al3 < 0]
-    idx_no = df_al3.index[df_al3 == 0]
-    df_al3 = pd.DataFrame(df_al3, columns = ['diff'])
-    df_al3 = df_al3.assign(label=0)
-    idx = df_al3.reset_index()
-    df_al3.iloc[idx_up, 1] = 1
-    df_al3.iloc[idx_down, 1] = 2
-    df_up = df_al3[df_al3.iloc[:, 1] == 1]
-    df_down = df_al3[df_al3.iloc[:, 1] == 2]
-    #さらに分割して５つに分ける
-    df_up = df_up.sort_values('diff', ascending=False)
-    df_down = df_down.sort_values('diff', ascending=False)
-    len_up = math.floor(len(df_up)/2)
-    len_down = math.floor(len(df_down)/2)
-    lim_up = str(df_up.iloc[len_up, 0])
-    lim_down = str(df_down.iloc[len_down, 0])
-    df_1 = df_up[len_up:]
-    df_2 = df_up[:len_up-1]
-    df_3 = df_down[len_down+1:]
-    df_4 = df_down[:len_down]
-    idx_1 = list(df_1.index)
-    idx_2 = list(df_2.index)
-    idx_3 = list(df_3.index)
-    idx_4 = list(df_4.index)
-    df_label[idx_1] = 1
-    df_label[idx_2] = 2
-    df_label[idx_3] = 3
-    df_label[idx_4] = 4
-    df_label[idx_no] = 5
-    #MACDデータ作成
+    lerndata = int(lerndata)
+    #データ作成
     for i in range(lerndata-1):
         if i == 0:
             df_shift = df
@@ -175,16 +134,9 @@ def make_df(df, df_all, bar, lerndata):
     #結合
     sh = df.shape
     df.columns = range(sh[1])
-    df = pd.concat([df_label, df], axis=1)
-    sh = df.shape
-    df.columns = range(sh[1])
     df = df.dropna(how='any')
+    print(df)
     return df
-#dfから特徴量とラベルのみ抽出
-def extract_x_y(df: pd.DataFrame):
-    x = df.iloc[:, 1:] #特徴量
-    y = df.iloc[:, 0] #ラベル
-    return x, y
 
 #買い
 def buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, trade_id, flag):
@@ -303,36 +255,29 @@ def sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_dow
     return trade_id, flag, times
 
 
+#学習
 class Model(nn.Module):
-    def __init__(self, input_dim, output_dim, hidden_dim=500):
+    def __init__(self, input_dim, output_dim, hidden_dim=600):
         #print(input_dim, output_dim)
         super(Model, self).__init__()
         self.l1 = nn.Linear(input_dim, hidden_dim)
-        self.d1 = nn.Dropout(p=0.4)
+        self.d1 = nn.Dropout(p=0.1)
         self.a1 = nn.ReLU()
         self.l2 = nn.Linear(hidden_dim, hidden_dim)
-        self.d2 = nn.Dropout(p=0.4)
+        self.d2 = nn.Dropout(p=0.1)
         self.a2 = nn.ReLU()
         self.l3 = nn.Linear(hidden_dim, hidden_dim)
-        self.d3 = nn.Dropout(p=0.4)
+        self.d3 = nn.Dropout(p=0.1)
         self.a3 = nn.ReLU()
         self.l4 = nn.Linear(hidden_dim, hidden_dim)
-        self.d4 = nn.Dropout(p=0.4)
+        self.d4 = nn.Dropout(p=0.1)
         self.a4 = nn.ReLU()
         self.l5 = nn.Linear(hidden_dim, hidden_dim)
-        self.d5 = nn.Dropout(p=0.4)
+        self.d5 = nn.Dropout(p=0.1)
         self.a5 = nn.ReLU()
         self.l6 = nn.Linear(hidden_dim, output_dim)
-        """
-        self.layers = [self.l1, self.d1, self.a1,
-                        self.l2, self.d2, self.a2,
-                        self.l3, self.d3, self.a3,
-                        self.l4]
-        self.layers = [self.l1, self.a1,
-                        self.l2, self.a2,
-                        self.l4]
-        """
-        self.layers = [self.l1, self.a1, self.l2, self.a2, self.l3, self.a3, self.l4, self.a4, self.l5, self.a5, self.l6]
+        
+        self.layers = [self.l1, self.d1, self.a1, self.l2, self.d2, self.a2, self.l3, self.d3, self.a3, self.l4, self.d4, self.a4, self.l5, self.d5, self.a5, self.l6]
 
     def forward(self, x):
         for layer in self.layers:
@@ -340,16 +285,8 @@ class Model(nn.Module):
 
         return x
 
+
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-def make_data(x, y): #ラベルと特徴量を結合してリストにする
-    x = x.astype(np.float32) #astype() : ndarray要素のデータ型を変更
-    y = y.astype(np.int64)
-    data = []
-    for xx, yy in zip(x, y):
-        data.append((xx, yy))
-    return data
-
 #メイン
 trade_id = []
 flag = {"buy_signal" : 0,
@@ -385,17 +322,14 @@ while True:
         MACD_signal = macd_signal(MACD, signal)
         df_mac = pd.Series(MACD_signal)
         df = make_df(df_mac, df_all, bar, lerndata)
-        x, y = extract_x_y(df)
-        data = make_data(x.to_numpy(), y.to_numpy())
-        #データローダの設定
-        vali_dataloader = DataLoader(data, batch_size=len(data), shuffle=False)
-        for (x, t) in vali_dataloader:
-            x, t = x.to(device), t.to(device)
-            model.eval() #ネットワークを推論モードに
-            pre = model(x)
-            #print(pre)
-            pre = torch.argmax(pre)
-            #print(pre)
+        x = df.iloc[0, :]
+        x = torch.tensor(x.astype(np.float32)) #astype() : ndarray要素のデータ型を変更しtensor化
+        x = x.to(device)
+        model.eval() #ネットワークを推論モードに
+        pre = model(x)
+        #print(pre)
+        pre = torch.argmax(pre)
+        #print(pre)
         
         if pre == 0:
             trade_id, flag, times = buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, trade_id, flag)
