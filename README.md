@@ -11,7 +11,7 @@ oandapyv20 0.6.3
 2.Input id and token for data/account.txt  
 You can change exchange pair,lot,chart bar,learning date...etc by data/account.txt   *1  
 3.Run make_model.py  
-  ・print `best loss updated`  
+  ・print `best acc updated`  
 4.Run buy_sell.py  
   ・print `profit` `now_price` `loss` `trade`  *2    
  
