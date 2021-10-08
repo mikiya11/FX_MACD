@@ -305,8 +305,8 @@ for epoch in range(epochs):
                 accuracy_score(t.tolist(),
                 preds.argmax(dim=-1).tolist())
 
-        train_loss /= len(train_dataloader)
-        train_acc /= len(train_dataloader)
+    train_loss /= len(train_dataloader)
+    train_acc /= len(train_dataloader)
 
 #検証
     vali_loss = 0.
