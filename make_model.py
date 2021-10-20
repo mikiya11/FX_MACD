@@ -286,7 +286,7 @@ def vali_step(x, t):
 
     return loss, preds
 
-log = dict(epoch=[], train_loss=[], train_acc=[], vali_loss=[], vali_acc=[], test_loss=[], test_acc=[])
+log = dict(epoch=[], train_loss=[], train_acc=[], vali_loss=[], vali_acc=[])
 
 best_acc = 0
 best_model_params = None
@@ -323,21 +323,7 @@ for epoch in range(epochs):
 
     vali_loss /= len(vali_dataloader)
     vali_acc /= len(vali_dataloader)
-#評価
-    test_loss = 0.
-    test_acc = 0.
 
-    for (x, t) in test_dataloader:
-        x, t = x.to(device), t.to(device)
-        loss, preds = vali_step(x, t)
-        #print(loss)
-        #print(preds)
-        test_loss += loss.item()
-        test_acc += \
-            accuracy_score(t.tolist(),preds.argmax(dim=-1).tolist())
-
-    test_loss /= len(test_dataloader)
-    test_acc /= len(test_dataloader)
 #epochごとの結果をlogに記録
     if vali_acc > best_acc:
         print("best acc updated")
@@ -350,7 +336,6 @@ for epoch in range(epochs):
     log['train_acc'].append(train_acc)
     log['vali_loss'].append(vali_loss)
     log['vali_acc'].append(vali_acc)
-    log['test_loss'].append(test_loss)
-    log['test_acc'].append(test_acc)
+
     pd.DataFrame(log).to_csv('./data/train_log'+'_'+ex_pair+'_'+asi+'_'+bar+'_'+lerndata+'_'+data_num+'.csv')
 
