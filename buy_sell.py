@@ -9,7 +9,7 @@ import oandapyV20.endpoints.pricing as pricing
 import oandapyV20.endpoints.orders as orders
 import oandapyV20.endpoints.positions as positions
 import oandapyV20.endpoints.trades as trades
-from oandapyV20.endpoints.trades import TradeDetails, TradeClose
+from oandapyV20.endpoints.positions import PositionClose
 from oandapyV20.exceptions import V20Error
 from datetime import datetime, timedelta
 from torch.utils.data import DataLoader
@@ -139,7 +139,7 @@ def make_df(df, df_all, bar, lerndata):
     return df
 
 #買い
-def buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, trade_id, flag):
+def buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, flag):
     lot = str(lot)
     profit = now_price + lim_up
     loss = now_price + (lim_down*3)
@@ -147,15 +147,14 @@ def buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down
     loss = str(round(loss, 3))
     #売りポジション決済
     if flag["sell_signal"] == 1:
-        #print(trade_id)
-        for i in range(len(trade_id)-1):
-            data_clo = None
-            ticket = TradeClose(accountID=account_id, tradeID=trade_id[i], data=data_clo)
-            try:
-                api.request(ticket)
-            except V20Error:
-                pass
-        trade_id = []
+        data = {
+            "shortUnits": "ALL"
+        }
+        ticket = PositionClose(accountID=account_id, instrument=ex_pair, data=data)
+        try:
+            api.request(ticket)
+        except V20Error:
+            pass
         flag["sell_signal"] = 0
     data = {
          "order": {
@@ -177,7 +176,6 @@ def buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down
     
     try:
         res = api.request(ticket)
-        trade_id.append(res['orderCreateTransaction']['id']) #tradeID
         times = 0
         headers = ["profit", "now_price", "loss", "trade"]
         table = [(profit, now_price, loss, "buy")]
@@ -187,7 +185,6 @@ def buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down
     except V20Error:
         api = oandapyV20.API(access_token=api_key, environment="live")
         res = api.request(ticket)
-        trade_id.append(res['orderCreateTransaction']['id']) #tradeID
         times = 0
         headers = ["profit", "now_price", "loss", "trade"]
         table = [(profit, now_price, loss, "buy")]
@@ -195,9 +192,9 @@ def buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down
         print(result)
         flag["buy_signal"] = 1
     
-    return trade_id, flag, times
+    return flag, times
 #売り
-def sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, trade_id, flag):
+def sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, flag):
     lot = str(lot)
     profit = now_price + lim_down
     loss = now_price +(lim_up*3)
@@ -205,15 +202,14 @@ def sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_dow
     loss = str(round(loss, 3))
     #買いポジション決済
     if flag["buy_signal"] == 1:
-        #print(trade_id)
-        for i in range(len(trade_id)-1):
-            data_clo = None
-            ticket = TradeClose(accountID=account_id, tradeID=trade_id[i], data=data_clo)
-            try:
-                api.request(ticket)
-            except V20Error:
-                pass
-        trade_id = []
+        data = {
+            "longUnits": "ALL"
+        }
+        ticket = PositionClose(accountID=account_id, instrument=ex_pair, data=data)
+        try:
+            api.request(ticket)
+        except V20Error:
+            pass
         flag["buy_signal"] = 0
     data = {
          "order": {
@@ -235,7 +231,6 @@ def sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_dow
     
     try:
         res = api.request(ticket)
-        trade_id.append(res['orderCreateTransaction']['id']) #tradeID
         times = 0
         headers = ["profit", "now_price", "loss", "trade"]
         table = [(profit, now_price, loss, "sell")]
@@ -245,14 +240,13 @@ def sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_dow
     except V20Error:
         api = oandapyV20.API(access_token=api_key, environment="live")
         res = api.request(ticket)
-        trade_id.append(res['orderCreateTransaction']['id']) #tradeID
         times = 0
         headers = ["profit", "now_price", "loss", "trade"]
         table = [(profit, now_price, loss, "sell")]
         result=tabulate(table, headers)
         print(result)
         flag["sell_signal"] = 1
-    return trade_id, flag, times
+    return flag, times
 
 
 #学習
@@ -332,9 +326,9 @@ while True:
         #print(pre)
         
         if pre == 0:
-            trade_id, flag, times = buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, trade_id, flag)
+            flag, times = buy_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, flag)
         elif pre == 3:
-            trade_id, flag, times = sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, trade_id, flag)
+            flag, times = sell_signal(now_price, account_id, api, lot, ex_pair, times, lim_up, lim_down, flag)
         
         
     else:
