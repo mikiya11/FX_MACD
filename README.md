@@ -10,13 +10,14 @@ oandapyv20 0.6.3
 1.install pytorch,pandas,numpy,oandapyv20,tabulate  
 2.Input id and token for data/account.txt  
 You can change exchange pair,lot,chart bar,learning date...etc by data/account.txt   *1  
+3.Run getdata.py  
 3.Run make_model.py  
   ・print `best acc updated`  
 4.Run buy_sell.py  
   ・print `profit` `now_price` `loss` `trade`  *2    
  
 
-If you want to trade other than USD_JPY and GBP_JPY, change data/account.txt and run getdata.py  
+If you want to trade GBP_USD, GBP_JPY,etc..., change data/account.txt and run getdata.py  
 
 *1  
 |account_id|api_key|pair|lot|asi|date|epoch|bar|lern|data
