@@ -336,5 +336,6 @@ for epoch in range(epochs):
     log['train_acc'].append(train_acc)
     log['vali_loss'].append(vali_loss)
     log['vali_acc'].append(vali_acc)
+
     pd.DataFrame(log).to_csv('./data/train_log'+'_'+ex_pair+'_'+asi+'_'+bar+'_'+lerndata+'_'+data_num+'.csv')
 
