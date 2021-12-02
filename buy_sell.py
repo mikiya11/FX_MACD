@@ -294,9 +294,9 @@ if 'S' in asi :
 if 'M' in asi:
     mini = (int(re.sub(r"\D", "", asi))*60)/5
 if 'H' in asi:
-    mini = (int(re.sub(r"\D", "", asi))*360)/5
+    mini = (int(re.sub(r"\D", "", asi))*3600)/5
 if 'D' in asi:
-    mini = (int(re.sub(r"\D", "", asi))*8640)/5
+    mini = (int(re.sub(r"\D", "", asi))*86400)/5
 times = (bar * mini)
 #print(times)
 old_price = 0
